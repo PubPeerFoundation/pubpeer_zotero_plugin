@@ -1,0 +1,8 @@
+<?xml version="1.0"?>
+<overlay id="zoteropubpeer-itemPane-overlay"
+    xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul">
+	
+	<!-- Include the main extension logic -->
+	<script src="chrome://zotero/content/include.js"/>
+	<script src="chrome://zoteropubpeer/content/include.js"/>
+</overlay>

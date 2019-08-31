@@ -1,0 +1,6 @@
+content	zoteropubpeer				chrome/content/zoteropubpeer/
+locale	zoteropubpeer	en-US		chrome/locale/en-US/zoteropubpeer/
+skin	zoteropubpeer	default		chrome/skin/default/zoteropubpeer/
+
+overlay	chrome://zotero/content/zoteroPane.xul	chrome://zoteropubpeer/content/zoteroPaneOverlay.xul
+overlay chrome://zotero/content/itemPane.xul    chrome://zoteropubpeer/content/itemPaneOverlay.xul
