@@ -1,0 +1,42 @@
+{
+  "name": "zotero-pubpeer",
+  "version": "0.0.1",
+  "description": "Plugin to show if references in Zotero have PubPeer comments",
+  "scripts": {
+    "lint": "tslint -t stylish --project .",
+    "prebuild": "npm run lint",
+    "build": "webpack",
+    "postbuild": "zotero-plugin-zipup build zotero-pubpeer",
+    "release": "zotero-plugin-release",
+    "postversion": "git push --follow-tags"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/PubPeerFoundation/pubpeer_zotero_plugin.git"
+  },
+  "author": {
+    "name": "PubPeer Foundation",
+    "email": "contact@pubpeer.com"
+  },
+  "bugs": {
+    "url": "https://github.com/PubPeerFoundation/pubpeer_zotero_plugin/issues"
+  },
+  "homepage": "https://github.com/PubPeerFoundation/pubpeer_zotero_plugin",
+  "dependencies": {
+    "circular-dependency-plugin": "^5.2.0",
+    "post-compile-webpack-plugin": "^0.1.2",
+    "rimraf": "^3.0.0",
+    "ts-loader": "^6.2.0",
+    "ts-node": "^8.4.1",
+    "tslint": "^5.20.0",
+    "typescript": "^3.7.0-beta",
+    "webpack": "^4.41.0",
+    "webpack-cli": "^3.3.9",
+    "zotero-plugin": "0.0.91"
+  },
+  "xpi": {
+    "name": "Pubpeer Plugin for Zotero",
+    "updateLink": "https://github.com/PubPeerFoundation/pubpeer_zotero_plugin/releases/download/v{version}/zotero-auto-index-{version}.xpi",
+    "releaseURL": "https://github.com/PubPeerFoundation/pubpeer_zotero_plugin/releases/download/release/"
+  }
+}

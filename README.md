@@ -1,4 +1,8 @@
-# zotero_plugin
+Pubpeer
+=================
+
+Install by downloading the [latest version](https://github.com/PubPeerFoundation/pubpeer_zotero_plugin/releases/latest)
+
 Plugin to show if references in Zotero have PubPeer comments
 
-This is a very preliminary version. So far, it only shows a menu item when right-clicking on a reference to check whether a comment has been posted
+

@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<?xml-stylesheet href="chrome://zotero-pubpeer/skin/overlay.css" type="text/css"?>
+<!DOCTYPE window SYSTEM "chrome://zotero-pubpeer/locale/zotero-pubpeer.dtd">
+
+<overlay id="zotero-pubpeer-overlay"
+  xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul">
+  
+  <menupopup id="zotero-itemmenu">
+    <menuitem id="menu-pubpeer-get-link" label="&zotero.pubpeer.item-menu.get-link;" oncommand="Zotero.PubPeer.run('getPubPeerLink')"/>
+  </menupopup>
+
+  <!-- Include the main extension logic -->
+  <script src="chrome://zotero/content/include.js"/>
+  <script src="chrome://zotero-pubpeer/content/webpack.js"/>
+  <script src="chrome://zotero-pubpeer/content/PubPeer.js"/>
+</overlay>

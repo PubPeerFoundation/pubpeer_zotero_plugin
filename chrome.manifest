@@ -1,6 +1,5 @@
-content	zoteropubpeer				chrome/content/zoteropubpeer/
-locale	zoteropubpeer	en-US		chrome/locale/en-US/zoteropubpeer/
-skin	zoteropubpeer	default		chrome/skin/default/zoteropubpeer/
+content	zotero-pubpeer				content/
+locale	zotero-pubpeer	en-US		locale/en-US/
+skin	zotero-pubpeer	default		skin/
 
-overlay	chrome://zotero/content/zoteroPane.xul	chrome://zoteropubpeer/content/zoteroPaneOverlay.xul
-overlay chrome://zotero/content/itemPane.xul    chrome://zoteropubpeer/content/itemPaneOverlay.xul
+overlay	chrome://zotero/content/zoteroPane.xul	chrome://zotero-pubpeer/content/zoteroPane.xul
