@@ -1,15 +1,9 @@
 declare const Zotero: any
 declare const Components: any
 
-const marker = 'PubPeerMonkeyPatched'
+import { PubPeer } from './pubpeer'
 
-function patch(object, method, patcher) {
-  if (object[method][marker]) return
-  object[method] = patcher(object[method])
-  object[method][marker] = true
-}
-
-const PubPeer = new class { // tslint:disable-line:variable-name
+const PPZoteroPane = new class { // tslint:disable-line:variable-name
   private initialized: boolean = false
   private selectedItem: any
 
@@ -46,14 +40,7 @@ const PubPeer = new class { // tslint:disable-line:variable-name
     const doi = this.selectedItem ? this.selectedItem.getField('DOI') : ''
     if (!doi) return
 
-    const pubpeer = await Zotero.HTTP.request('POST', 'https://pubpeer.com/v3/publications?devkey=PubPeerZotero', {
-      body: JSON.stringify({ dois: [doi] }),
-      responseType: 'json',
-      headers: { 'Content-Type': 'application/json;charset=UTF-8' },
-    })
-
-    Zotero.debug(JSON.stringify(pubpeer?.response))
-    const feedback = pubpeer?.response?.feedbacks?.[0]
+    const feedback = (await PubPeer.get([ doi ]))[0]
     if (feedback) {
       let output = `The selected item has ${feedback.total_comments} ${feedback.total_comments === 1 ? 'comment' : 'comments'} on PubPeer`
       if (feedback.total_comments) output += ` ${feedback.url}`
@@ -63,13 +50,13 @@ const PubPeer = new class { // tslint:disable-line:variable-name
 }
 
 window.addEventListener('load', event => {
-  PubPeer.load().catch(err => Zotero.logError(err))
+  PPZoteroPane.load().catch(err => Zotero.logError(err))
 }, false)
 window.addEventListener('unload', event => {
-  PubPeer.unload().catch(err => Zotero.logError(err))
+  PPZoteroPane.unload().catch(err => Zotero.logError(err))
 }, false)
 
-export = PubPeer
+export = PPZoteroPane
 
 // otherwise this entry point won't be reloaded: https://github.com/webpack/webpack/issues/156
 delete require.cache[module.id]

@@ -74,7 +74,9 @@ const config = {
   context: path.resolve(__dirname, './content'),
 
   entry: {
-    PubPeer: './zotero-pubPeer.ts',
+    PubPeer: './pubpeer.ts',
+    'PubPeer.zoteroPane': './zoteroPane.ts',
+    'PubPeer.itemPane': './itemPane.ts',
   },
 
   output: {

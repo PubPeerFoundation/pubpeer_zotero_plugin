@@ -3,3 +3,4 @@ locale	zotero-pubpeer	en-US		locale/en-US/
 skin	zotero-pubpeer	default		skin/
 
 overlay	chrome://zotero/content/zoteroPane.xul	chrome://zotero-pubpeer/content/zoteroPane.xul
+overlay	chrome://zotero/content/itemPane.xul	chrome://zotero-pubpeer/content/itemPane.xul
