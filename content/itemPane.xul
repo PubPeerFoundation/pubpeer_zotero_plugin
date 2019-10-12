@@ -1,6 +1,7 @@
 <?xml version="1.0"?>
 <?xml-stylesheet href="chrome://global/skin/" type="text/css"?>
 <?xml-stylesheet href="chrome://zotero-pubpeer/skin/overlay.css" type="text/css"?>
+<?xml-stylesheet href="chrome://zotero-pubpeer/skin/html.css" type="text/css"?>
 <!DOCTYPE window SYSTEM "chrome://zotero-pubpeer/locale/zotero-pubpeer.dtd">
 
 <overlay xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul">
@@ -10,7 +11,11 @@
   </tabs>
   <tabpanels id="zotero-view-item">
     <tabpanel id="zotero-editpane-pubpeer-tab" flex="1" orient="vertical">
-      <html:div id="zotero-editpane-pubpeer-summary" xmlns:html="http://www.w3.org/1999/xhtml"/>
+      <vbox flex="1" style="overflow: auto">
+        <description>
+          <html:div id="zotero-editpane-pubpeer-summary" xmlns:html="http://www.w3.org/1999/xhtml" type="content"/>
+        </description>
+      </vbox>
     </tabpanel>
   </tabpanels>
 
