@@ -4,15 +4,12 @@ declare const Components: any
 import { PubPeer } from './pubpeer'
 
 const PPZoteroPane = new class { // tslint:disable-line:variable-name
-  private initialized: boolean = false
   private selectedItem: any
 
   public async load() {
-    if (!this.initialized) {
-      this.initialized = true
-    }
-
     document.getElementById('zotero-itemmenu').addEventListener('popupshowing', this, false)
+
+    await PubPeer.start()
   }
 
   public async unload() {

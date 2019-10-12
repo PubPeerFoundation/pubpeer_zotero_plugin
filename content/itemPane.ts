@@ -1,4 +1,5 @@
 declare const Zotero: any
+declare const Components: any
 declare const ZoteroItemPane: any
 
 import { patch as $patch$ } from './monkey-patch'
@@ -8,6 +9,11 @@ const PPItemPane = new class { // tslint:disable-line:variable-name
   public item: any = null
 
   private observer: number = null
+
+  private dom = {
+    parser: Components.classes['@mozilla.org/xmlextras/domparser;1'].createInstance(Components.interfaces.nsIDOMParser),
+    serializer: Components.classes['@mozilla.org/xmlextras/xmlserializer;1'].createInstance(Components.interfaces.nsIDOMSerializer),
+  }
 
   public async notify(action, type, ids) {
     if (!this.item || !ids.includes(this.item.id)) return
@@ -42,14 +48,27 @@ const PPItemPane = new class { // tslint:disable-line:variable-name
     // if (!doi) return
 
     const container = document.getElementById('zotero-editpane-pubpeer-summary')
-    container.innerHTML = ''
 
-    if (doi) {
-      const feedback = (await PubPeer.get([doi]))[0]
-      const summary = PubPeer.getString('itemPane.summary', feedback, true)
+    let summary = PubPeer.getString('itemPane.noComment')
+    const feedback = doi && (await PubPeer.get([doi]))[0]
+    if (feedback) {
+      summary = PubPeer.getString('itemPane.summary', {...feedback, last_commented_at: feedback.last_commented_at.toLocaleString() }, true)
+      summary = `<div xmlns:html="http://www.w3.org/1999/xhtml">${summary}</div>`
+      summary = summary.replace(/(<\/?)/g, '$1html:')
+
+      const html = this.dom.parser.parseFromString(summary, 'text/xml')
+      for (const a of html.getElementsByTagNameNS('http://www.w3.org/1999/xhtml', 'a')) {
+        if (!a.getAttribute('href')) continue
+
+        a.setAttribute('onclick', 'Zotero.launchURL(this.getAttribute("href")); return false;')
+        a.setAttribute('style', 'color: blue')
+      }
+      summary = this.dom.serializer.serializeToString(html)
+
       Zotero.debug(`PubPeer.ZoteroItemPane.refresh: ${JSON.stringify(feedback)}: ${summary}`)
-      if (feedback) container.innerHTML = summary
     }
+
+    container.innerHTML = summary
   }
 }
 
