@@ -73,7 +73,7 @@ function getCellX(tree, row, col, field) {
       return `chrome://zotero-pubpeer/skin/pubpeer${Zotero.hiDPISuffix}.png`
 
     case 'text':
-      return ' '
+      return PubPeer.feedback[doi].last_commented_at.toISOString().replace(/T.*/, '')
 
     case 'properties':
       return ' hasPubPeerComments'
