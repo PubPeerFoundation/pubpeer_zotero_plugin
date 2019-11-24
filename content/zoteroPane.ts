@@ -2,6 +2,7 @@ declare const Zotero: any
 declare const Components: any
 
 import { PubPeer } from './pubpeer'
+import { patch as $patch$ } from './monkey-patch'
 
 const PPZoteroPane = new class { // tslint:disable-line:variable-name
   private selectedItem: any
@@ -45,6 +46,18 @@ const PPZoteroPane = new class { // tslint:disable-line:variable-name
     }
   }
 }
+
+// Monkey patch because of https://groups.google.com/forum/#!topic/zotero-dev/zy2fSO1b0aQ
+$patch$(Zotero.getActiveZoteroPane(), 'serializePersist', original => function() {
+  original.apply(this, arguments)
+
+  let persisted
+  if (Zotero.PubPeer.uninstalled && (persisted = Zotero.Prefs.get('pane.persist'))) {
+    persisted = JSON.parse(persisted)
+    delete persisted['zotero-items-column-pubpeer']
+    Zotero.Prefs.set('pane.persist', JSON.stringify(persisted))
+  }
+})
 
 window.addEventListener('load', event => {
   PPZoteroPane.load().catch(err => Zotero.logError(err))

@@ -1,5 +1,10 @@
+Components.utils.import('resource://gre/modules/AddonManager.jsm')
+declare const AddonManager: any
+
 declare const Zotero: any
 declare const Components: any
+
+import { patch as $patch$ } from './monkey-patch'
 
 interface Feedback {
   id: string // DOI
@@ -17,11 +22,74 @@ function plaintext(text) {
   return `${text}`
 }
 
+function getField(item, field) {
+  try {
+    return item.getField(field) || ''
+  } catch (err) {
+    return ''
+  }
+}
+function getDOI(doi, extra) {
+  if (doi) return doi
+
+  if (!extra) return ''
+
+  const dois = extra.value.split('\n').map(line => line.match(/^DOI:\s*(.+)/i)).filter(line => line).map(line => line[1].trim())
+  return dois[0] || ''
+}
+
+const itemTreeViewWaiting: Record<number, { image?: boolean, text?: boolean }> = {}
+$patch$(Zotero.ItemTreeView.prototype, 'getImageSrc', original => function Zotero_ItemTreeView_prototype_getImageSrc(row, col) {
+  if (col.id !== 'zotero-items-column-pubpeer') return original.apply(this, arguments)
+
+  const item = this.getRow(row).ref
+  if (item.isNote() || item.isAttachment()) return ''
+
+  if (PubPeer.ready.isPending()) { // tslint:disable-line:no-use-before-declare
+    if (!itemTreeViewWaiting[item.id]?.image) {
+      // tslint:disable-next-line:no-use-before-declare
+      PubPeer.ready.then(() => this._treebox.invalidateCell(row, col))
+      itemTreeViewWaiting[item.id] = itemTreeViewWaiting[item.id] || {}
+      itemTreeViewWaiting[item.id].image = true
+    }
+    return ''
+  }
+
+  const doi = getDOI(getField(item, 'DOI'), getField(item, 'extra'))
+  if (!doi || !PubPeer.feedback[doi]) return ''
+
+  return `chrome://zotero-pubpeer/skin/pubpeer${Zotero.hiDPISuffix}.png`
+})
+
+$patch$(Zotero.ItemTreeView.prototype, 'getCellText', original => function Zotero_ItemTreeView_prototype_getCellText(row, col) {
+  if (col.id !== 'zotero-items-column-pubpeer') return original.apply(this, arguments)
+
+  const item = this.getRow(row).ref
+  if (item.isNote() || item.isAttachment()) return ''
+
+  if (PubPeer.ready.isPending()) { // tslint:disable-line:no-use-before-declare
+    if (!itemTreeViewWaiting[item.id]?.text) {
+      // tslint:disable-next-line:no-use-before-declare
+      PubPeer.ready.then(() => this._treebox.invalidateCell(row, col))
+      itemTreeViewWaiting[item.id] = itemTreeViewWaiting[item.id] || {}
+      itemTreeViewWaiting[item.id].text = true
+    }
+    return ''
+  }
+
+  const doi = getDOI(getField(item, 'DOI'), getField(item, 'extra'))
+  if (!doi || !PubPeer.feedback[doi]) return ''
+
+  return `${PubPeer.feedback[doi].total_comments}`
+})
+
 const ready = Zotero.Promise.defer()
 
 export let PubPeer = new class { // tslint:disable-line:variable-name
-  public ready: Promise<boolean> = ready.promise
-  public feedback: { [itemID: string]: Feedback } = {}
+  // public ready: Promise<boolean> = ready.promise
+  public ready: any = ready.promise
+  public feedback: { [DOI: string]: Feedback } = {}
+  public uninstalled: boolean = false
 
   private bundle: any
   private started = false
@@ -37,6 +105,8 @@ export let PubPeer = new class { // tslint:disable-line:variable-name
     await Zotero.Schema.schemaUpdatePromise
     await this.refresh()
     ready.resolve(true)
+
+    Zotero.Notifier.registerObserver(this, ['item'], 'PubPeer', 1)
   }
 
   public getString(name, params = {}, html = false) {
@@ -108,4 +178,33 @@ export let PubPeer = new class { // tslint:disable-line:variable-name
 
     setTimeout(this.refresh.bind(this), 24 * 60 * 60 * 1000) // tslint:disable-line:no-magic-numbers
   }
+
+  protected async notify(action, type, ids, extraData) {
+    if (type !== 'item' || action !== 'modify' && action !== 'add') return
+
+    const dois = []
+    for (const item of (await Zotero.Items.getAsync(ids))) {
+      const doi = getDOI(getField(item, 'DOI'), getField(item, 'extra'))
+      if (doi && !dois.includes(doi)) dois.push(doi)
+    }
+    if (dois.length) await this.get(dois)
+  }
 }
+
+// used in zoteroPane.ts
+AddonManager.addAddonListener({
+  onUninstalling(addon, needsRestart) {
+    if (addon.id === 'pubpeer@pubpeer.com') PubPeer.uninstalled = true
+  },
+
+  onDisabling(addon, needsRestart) { this.onUninstalling(addon, needsRestart) },
+
+  onOperationCancelled(addon, needsRestart) {
+    if (addon.id !== 'pubpeer@pubpeer.com') return null
+
+    // tslint:disable-next-line:no-bitwise
+    if (addon.pendingOperations & (AddonManager.PENDING_UNINSTALL | AddonManager.PENDING_DISABLE)) return null
+
+    delete Zotero.PubPeer.uninstalled
+  },
+})

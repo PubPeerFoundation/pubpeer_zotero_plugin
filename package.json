@@ -26,17 +26,21 @@
     "circular-dependency-plugin": "^5.2.0",
     "post-compile-webpack-plugin": "^0.1.2",
     "rimraf": "^3.0.0",
-    "ts-loader": "^6.2.0",
-    "ts-node": "^8.4.1",
-    "tslint": "^5.20.0",
-    "typescript": "^3.7.0-beta",
+    "ts-loader": "^6.2.1",
+    "ts-node": "^8.5.2",
+    "tslint": "^5.20.1",
+    "typescript": "^3.7.2",
     "webpack": "^4.41.2",
-    "webpack-cli": "^3.3.9",
-    "zotero-plugin": "0.0.91"
+    "webpack-cli": "^3.3.10",
+    "zotero-plugin": "0.0.95"
   },
   "xpi": {
     "name": "Pubpeer Plugin for Zotero",
     "updateLink": "https://github.com/PubPeerFoundation/pubpeer_zotero_plugin/releases/download/v{version}/zotero-auto-index-{version}.xpi",
     "releaseURL": "https://github.com/PubPeerFoundation/pubpeer_zotero_plugin/releases/download/release/"
+  },
+  "devDependencies": {
+    "@types/node": "^12.12.12",
+    "bluebird": "^3.7.1"
   }
 }
