@@ -8,10 +8,10 @@
     <menuitem id="menu-pubpeer-get-link" label="&zotero.pubpeer.item-menu.get-link;" oncommand="Zotero.PubPeer.zoteroPane.run('getPubPeerLink')"/>
   </menupopup>
 
-<treecols id="zotero-items-columns-header">
+  <treecols id="zotero-items-columns-header">
     <treecol
       id="zotero-items-column-pubpeer"
-      label="PubPeer"
+      label="PubPeer Comments"
       flex="1"
       insertafter="zotero-items-column-title"
       zotero-persist="width ordinal hidden sortActive sortDirection"

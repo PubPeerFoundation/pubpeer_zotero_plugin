@@ -38,49 +38,66 @@ function getDOI(doi, extra) {
   return dois[0] || ''
 }
 
-const itemTreeViewWaiting: Record<number, { image?: boolean, text?: boolean }> = {}
-$patch$(Zotero.ItemTreeView.prototype, 'getImageSrc', original => function Zotero_ItemTreeView_prototype_getImageSrc(row, col) {
-  if (col.id !== 'zotero-items-column-pubpeer') return original.apply(this, arguments)
+const itemTreeViewWaiting: Record<number, { image?: boolean, text?: boolean, properties?: boolean }> = {}
 
-  const item = this.getRow(row).ref
+function getCellX(tree, row, col, field) {
+  if (col.id !== 'zotero-items-column-pubpeer') return ''
+
+  const item = tree.getRow(row).ref
+
   if (item.isNote() || item.isAttachment()) return ''
 
   if (PubPeer.ready.isPending()) { // tslint:disable-line:no-use-before-declare
-    if (!itemTreeViewWaiting[item.id]?.image) {
+    if (!itemTreeViewWaiting[item.id]?.[field]) {
       // tslint:disable-next-line:no-use-before-declare
-      PubPeer.ready.then(() => this._treebox.invalidateCell(row, col))
+      PubPeer.ready.then(() => tree._treebox.invalidateCell(row, col))
       itemTreeViewWaiting[item.id] = itemTreeViewWaiting[item.id] || {}
-      itemTreeViewWaiting[item.id].image = true
+      itemTreeViewWaiting[item.id][field] = true
     }
-    return ''
+
+    switch (field) {
+      case 'image':
+        return 'chrome://zotero-pubpeer/skin/loading.gif'
+      case 'properties':
+        return ' PubPeerLoading'
+      case 'text':
+        return ''
+    }
   }
 
   const doi = getDOI(getField(item, 'DOI'), getField(item, 'extra'))
   if (!doi || !PubPeer.feedback[doi]) return ''
 
-  return `chrome://zotero-pubpeer/skin/pubpeer${Zotero.hiDPISuffix}.png`
+  switch (field) {
+    case 'image':
+      return `chrome://zotero-pubpeer/skin/pubpeer${Zotero.hiDPISuffix}.png`
+
+    case 'text':
+      return `${PubPeer.feedback[doi].total_comments}`
+
+    case 'properties':
+      return ' hasPubPeerComments'
+  }
+}
+
+$patch$(Zotero.ItemTreeView.prototype, 'getCellProperties', original => function Zotero_ItemTreeView_prototype_getCellProperties(row, col, prop) {
+  const props = (original.apply(this, arguments) + getCellX(this, row, col, 'properties')).trim()
+  Zotero.debug(`getCellProperties: ${props}`)
+  return props
+})
+
+$patch$(Zotero.ItemTreeView.prototype, 'getImageSrc', original => function Zotero_ItemTreeView_prototype_getImageSrc(row, col) {
+  if (col.id !== 'zotero-items-column-pubpeer') return original.apply(this, arguments)
+
+  Zotero.debug(`getImageSrc: ${getCellX(this, row, col, 'image')}`)
+
+  return getCellX(this, row, col, 'image')
 })
 
 $patch$(Zotero.ItemTreeView.prototype, 'getCellText', original => function Zotero_ItemTreeView_prototype_getCellText(row, col) {
   if (col.id !== 'zotero-items-column-pubpeer') return original.apply(this, arguments)
 
-  const item = this.getRow(row).ref
-  if (item.isNote() || item.isAttachment()) return ''
-
-  if (PubPeer.ready.isPending()) { // tslint:disable-line:no-use-before-declare
-    if (!itemTreeViewWaiting[item.id]?.text) {
-      // tslint:disable-next-line:no-use-before-declare
-      PubPeer.ready.then(() => this._treebox.invalidateCell(row, col))
-      itemTreeViewWaiting[item.id] = itemTreeViewWaiting[item.id] || {}
-      itemTreeViewWaiting[item.id].text = true
-    }
-    return ''
-  }
-
-  const doi = getDOI(getField(item, 'DOI'), getField(item, 'extra'))
-  if (!doi || !PubPeer.feedback[doi]) return ''
-
-  return `${PubPeer.feedback[doi].total_comments}`
+  return getCellX(this, row, col, 'text')
 })
 
 const ready = Zotero.Promise.defer()
