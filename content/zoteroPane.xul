@@ -11,7 +11,7 @@
   <treecols id="zotero-items-columns-header">
     <treecol
       id="zotero-items-column-pubpeer"
-      label="PubPeer Comments"
+      label="PubPeer"
       flex="1"
       insertafter="zotero-items-column-title"
       zotero-persist="width ordinal hidden sortActive sortDirection"

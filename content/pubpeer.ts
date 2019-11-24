@@ -73,7 +73,7 @@ function getCellX(tree, row, col, field) {
       return `chrome://zotero-pubpeer/skin/pubpeer${Zotero.hiDPISuffix}.png`
 
     case 'text':
-      return `${PubPeer.feedback[doi].total_comments}`
+      return ' '
 
     case 'properties':
       return ' hasPubPeerComments'
@@ -98,6 +98,23 @@ $patch$(Zotero.ItemTreeView.prototype, 'getCellText', original => function Zoter
   if (col.id !== 'zotero-items-column-pubpeer') return original.apply(this, arguments)
 
   return getCellX(this, row, col, 'text')
+})
+
+// To show the citekey in the reference list
+$patch$(Zotero.Item.prototype, 'getField', original => function Zotero_Item_prototype_getField(field, unformatted, includeBaseMapped) {
+  try {
+    if (field === 'pubpeer') {
+      if (PubPeer.ready.isPending()) return '' // tslint:disable-line:no-use-before-declare
+      const doi = getDOI(getField(this, 'DOI'), getField(this, 'extra'))
+      if (!doi || !PubPeer.feedback[doi]) return ''
+      return ' '
+    }
+  } catch (err) {
+    Zotero.logError(`pubpeer patched getField: ${err}`)
+    return ''
+  }
+
+  return original.apply(this, arguments)
 })
 
 const ready = Zotero.Promise.defer()
