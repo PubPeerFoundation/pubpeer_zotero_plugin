@@ -34,7 +34,7 @@ function getDOI(doi, extra) {
 
   if (!extra) return ''
 
-  const dois = extra.value.split('\n').map(line => line.match(/^DOI:\s*(.+)/i)).filter(line => line).map(line => line[1].trim())
+  const dois = extra.split('\n').map(line => line.match(/^DOI:\s*(.+)/i)).filter(line => line).map(line => line[1].trim())
   return dois[0] || ''
 }
 
@@ -73,7 +73,7 @@ function getCellX(tree, row, col, field) {
       return `chrome://zotero-pubpeer/skin/pubpeer${Zotero.hiDPISuffix}.png`
 
     case 'text':
-      return PubPeer.feedback[doi].last_commented_at.toISOString().replace(/T.*/, '')
+      return `${PubPeer.feedback[doi].total_comments}` // last_commented_at.toISOString().replace(/T.*/, '')
 
     case 'properties':
       return ' hasPubPeerComments'
@@ -81,15 +81,11 @@ function getCellX(tree, row, col, field) {
 }
 
 $patch$(Zotero.ItemTreeView.prototype, 'getCellProperties', original => function Zotero_ItemTreeView_prototype_getCellProperties(row, col, prop) {
-  const props = (original.apply(this, arguments) + getCellX(this, row, col, 'properties')).trim()
-  Zotero.debug(`getCellProperties: ${props}`)
-  return props
+  return (original.apply(this, arguments) + getCellX(this, row, col, 'properties')).trim()
 })
 
 $patch$(Zotero.ItemTreeView.prototype, 'getImageSrc', original => function Zotero_ItemTreeView_prototype_getImageSrc(row, col) {
   if (col.id !== 'zotero-items-column-pubpeer') return original.apply(this, arguments)
-
-  Zotero.debug(`getImageSrc: ${getCellX(this, row, col, 'image')}`)
 
   return getCellX(this, row, col, 'image')
 })
@@ -157,7 +153,6 @@ export let PubPeer = new class { // tslint:disable-line:variable-name
       Zotero.logError(`PubPeer.getString(${name}): ${err}`)
     }
 
-    Zotero.debug(`PubPeer.getString(${name}): ${JSON.stringify(template)} ${JSON.stringify(params)}`)
     const encode = html ? htmlencode : plaintext
     return template.replace(/{{(.*?)}}/g, (match, param) => encode(params[param] || ''))
   }
@@ -172,8 +167,6 @@ export let PubPeer = new class { // tslint:disable-line:variable-name
           responseType: 'json',
           headers: { 'Content-Type': 'application/json;charset=UTF-8' },
         })
-
-        Zotero.debug(`PubPeer.get(${fetch}): ${JSON.stringify(pubpeer?.response || {})}`)
 
         for (const feedback of (pubpeer?.response?.feedbacks || [])) {
           if (feedback.last_commented_at.timezone !== 'UTC') Zotero.debug(`PubPeer.get: ${feedback.id} has timezone ${feedback.last_commented_at.timezone}`)
