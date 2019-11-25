@@ -96,7 +96,6 @@ $patch$(Zotero.ItemTreeView.prototype, 'getCellText', original => function Zoter
   return getCellX(this, row, col, 'text')
 })
 
-// To show the citekey in the reference list
 $patch$(Zotero.Item.prototype, 'getField', original => function Zotero_Item_prototype_getField(field, unformatted, includeBaseMapped) {
   try {
     if (field === 'pubpeer') {
@@ -207,7 +206,7 @@ export let PubPeer = new class { // tslint:disable-line:variable-name
   }
 
   protected async notify(action, type, ids, extraData) {
-    if (type !== 'item' || action !== 'modify' && action !== 'add') return
+    if (type !== 'item' || (action !== 'modify' && action !== 'add')) return
 
     const dois = []
     for (const item of (await Zotero.Items.getAsync(ids))) {
