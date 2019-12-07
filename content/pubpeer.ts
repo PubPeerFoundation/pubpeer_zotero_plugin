@@ -38,7 +38,7 @@ function getDOI(doi, extra) {
   return dois[0] || ''
 }
 
-const itemTreeViewWaiting: Record<number, { image?: boolean, text?: boolean, properties?: boolean }> = {}
+const itemTreeViewWaiting: Record<string, boolean> = {}
 
 function getCellX(tree, row, col, field) {
   if (col.id !== 'zotero-items-column-pubpeer') return ''
@@ -48,11 +48,11 @@ function getCellX(tree, row, col, field) {
   if (item.isNote() || item.isAttachment()) return ''
 
   if (PubPeer.ready.isPending()) { // tslint:disable-line:no-use-before-declare
-    if (!itemTreeViewWaiting[item.id]?.[field]) {
+    const id = `${field}.${item.id}`
+    if (!itemTreeViewWaiting[id]) {
       // tslint:disable-next-line:no-use-before-declare
       PubPeer.ready.then(() => tree._treebox.invalidateCell(row, col))
-      itemTreeViewWaiting[item.id] = itemTreeViewWaiting[item.id] || {}
-      itemTreeViewWaiting[item.id][field] = true
+      itemTreeViewWaiting[id] = true
     }
 
     switch (field) {
@@ -69,9 +69,6 @@ function getCellX(tree, row, col, field) {
   if (!doi || !PubPeer.feedback[doi]) return ''
 
   switch (field) {
-    case 'image':
-      return `chrome://zotero-pubpeer/skin/pubpeer${Zotero.hiDPISuffix}.png`
-
     case 'text':
       return `${PubPeer.feedback[doi].total_comments}` // last_commented_at.toISOString().replace(/T.*/, '')
 
@@ -82,12 +79,6 @@ function getCellX(tree, row, col, field) {
 
 $patch$(Zotero.ItemTreeView.prototype, 'getCellProperties', original => function Zotero_ItemTreeView_prototype_getCellProperties(row, col, prop) {
   return (original.apply(this, arguments) + getCellX(this, row, col, 'properties')).trim()
-})
-
-$patch$(Zotero.ItemTreeView.prototype, 'getImageSrc', original => function Zotero_ItemTreeView_prototype_getImageSrc(row, col) {
-  if (col.id !== 'zotero-items-column-pubpeer') return original.apply(this, arguments)
-
-  return getCellX(this, row, col, 'image')
 })
 
 $patch$(Zotero.ItemTreeView.prototype, 'getCellText', original => function Zotero_ItemTreeView_prototype_getCellText(row, col) {
