@@ -11,7 +11,7 @@ interface Feedback {
   title: string
   url: string
   total_comments: number
-  users: string
+  users: string[]
   last_commented_at: Date
 }
 
@@ -109,6 +109,7 @@ export let PubPeer = new class { // tslint:disable-line:variable-name
   // public ready: Promise<boolean> = ready.promise
   public ready: any = ready.promise
   public feedback: { [DOI: string]: Feedback } = {}
+  public users: Record<string, 'neutral' | 'priority' | 'muted'> = this.load()
   public uninstalled: boolean = false
 
   private bundle: any
@@ -116,6 +117,18 @@ export let PubPeer = new class { // tslint:disable-line:variable-name
 
   constructor() {
     this.bundle = Components.classes['@mozilla.org/intl/stringbundle;1'].getService(Components.interfaces.nsIStringBundleService).createBundle('chrome://zotero-pubpeer/locale/zotero-pubpeer.properties')
+  }
+
+  public load() {
+    try {
+      return JSON.parse(Zotero.Prefs.get('pubpeer.users') || '{}')
+    } catch (err) {
+      return {}
+    }
+  }
+
+  public save() {
+    Zotero.Prefs.set('pubpeer.users', JSON.stringify(this.users))
   }
 
   public async start() {
@@ -160,7 +173,14 @@ export let PubPeer = new class { // tslint:disable-line:variable-name
 
         for (const feedback of (pubpeer?.response?.feedbacks || [])) {
           if (feedback.last_commented_at.timezone !== 'UTC') Zotero.debug(`PubPeer.get: ${feedback.id} has timezone ${feedback.last_commented_at.timezone}`)
-          this.feedback[feedback.id] = {...feedback, last_commented_at: new Date(feedback.last_commented_at.date + 'Z') }
+          this.feedback[feedback.id] = {
+            ...feedback,
+            last_commented_at: new Date(feedback.last_commented_at.date + 'Z'),
+            users: feedback.users.split(/\s*,\s*/).filter(u => u),
+          }
+          for (const user of this.feedback[feedback.id].users) {
+            this.users[user] = this.users[user] || 'neutral'
+          }
         }
       } catch (err) {
         Zotero.debug(`PubPeer.get(${fetch}): ${err}`)

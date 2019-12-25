@@ -1,3 +1,13 @@
+@namespace url("http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul");
+
+button *, button:focus *
+{
+  background: transparent !important;
+  background-image: none !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
 #zotero-items-tree treechildren::-moz-tree-image(hasPubPeerComments)
 {
   margin: 1px 5px 0;
@@ -9,4 +19,28 @@
   margin: 1px 5px 0;
   list-style-image: url(chrome://zotero-pubpeer/skin/loading.png);
   height: 16px;
+}
+
+.pubpeer-checkbox {
+  min-height: 0! important;
+  height: 1.4em;
+  max-height: 1.4em;
+
+  min-width: 0 !important;
+  width: 1.6em;
+  max-width: 1.6em;
+
+  font-size: large;
+}
+.pubpeer-checkbox > hbox {
+  padding: 0px;
+  border: 0px;
+}
+
+.pubpeer-user-priority .pubpeer-username {
+  background-color: #005049;
+  color: white;
+}
+.pubpeer-user-muted .pubpeer-username {
+  color: grey;
 }
