@@ -22,19 +22,18 @@ button *, button:focus *
 }
 
 .pubpeer-checkbox {
-  min-height: 0! important;
-  height: 1.4em;
-  max-height: 1.4em;
-
-  min-width: 0 !important;
-  width: 1.6em;
-  max-width: 1.6em;
-
   font-size: large;
 }
-.pubpeer-checkbox > hbox {
-  padding: 0px;
-  border: 0px;
+
+.pubpeer-checkbox:hover {
+  outline-width: 1px;
+  outline-color: black;
+  outline-style: outset;
+}
+.pubpeer-checkbox:active {
+  outline-width: 1px;
+  outline-color: black;
+  outline-style: inset;
 }
 
 .pubpeer-user-priority .pubpeer-username {

@@ -8,19 +8,16 @@ import { PubPeer } from './pubpeer'
 const states = {
   name: [ 'neutral', 'priority', 'muted' ],
   label: { muted: '\u2612', neutral: '\u2610', priority: '\u2611' },
-  checkState: { muted: 0, neutral: 0, priority: 0 },
 }
-states.checkState = states.name.reduce((acc, s, i) => { acc[s] = i; return acc }, states.checkState)
 
 function toggleUser() {
   const user = this.getAttribute('data-user')
-  const checkState = (parseInt(this.checkState || 0) + 1) % states.name.length
-  const state = states.name[checkState]
+  const state = states.name[(states.name.indexOf(this.getAttribute('data-state')) + 1) % states.name.length]
 
   PubPeer.users[user] = (state as 'neutral') // bypass TS2322
-  this.parentElement.setAttribute('class', `pubpeer-user-${PubPeer.users[user]}`)
-  this.checkState = checkState
-  this.label = states.label[state]
+  this.parentElement.setAttribute('class', `pubpeer-user pubpeer-user-${state}`)
+  this.value = states.label[state]
+  this.setAttribute('data-state', state)
   PubPeer.save()
 }
 
@@ -93,13 +90,12 @@ const PPItemPane = new class { // tslint:disable-line:variable-name
         hbox.setAttribute('align', 'center')
         hbox.setAttribute('class', `pubpeer-user pubpeer-user-${PubPeer.users[user]}`)
 
-        const cb: any = hbox.appendChild(document.createElementNS(xul, 'button'))
+        const cb: any = hbox.appendChild(document.createElementNS(xul, 'label'))
+        const state = PubPeer.users[user]
         cb.setAttribute('class', 'pubpeer-checkbox')
-        cb.autoCheck = false
-        cb.type = 'checkbox'
-        cb.checkState = states.checkState[PubPeer.users[user]]
-        cb.label = states.label[PubPeer.users[user]]
+        cb.value = states.label[state]
         cb.setAttribute('data-user', user)
+        cb.setAttribute('data-state', state)
         cb.onclick = toggleUser
 
         const label: any = hbox.appendChild(document.createElementNS(xul, 'label'))
