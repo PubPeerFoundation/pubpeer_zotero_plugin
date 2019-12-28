@@ -22,15 +22,14 @@
     "url": "https://github.com/PubPeerFoundation/pubpeer_zotero_plugin/issues"
   },
   "homepage": "https://github.com/PubPeerFoundation/pubpeer_zotero_plugin",
-  "dependencies": {
-  },
+  "dependencies": {},
   "xpi": {
     "name": "Pubpeer Plugin for Zotero",
     "updateLink": "https://github.com/PubPeerFoundation/pubpeer_zotero_plugin/releases/download/v{version}/zotero-auto-index-{version}.xpi",
     "releaseURL": "https://github.com/PubPeerFoundation/pubpeer_zotero_plugin/releases/download/release/"
   },
   "devDependencies": {
-    "@types/node": "^12.12.14",
+    "@types/node": "^13.1.1",
     "bluebird": "^3.7.2",
     "circular-dependency-plugin": "^5.2.0",
     "post-compile-webpack-plugin": "^0.1.2",
@@ -38,8 +37,8 @@
     "ts-loader": "^6.2.1",
     "ts-node": "^8.5.4",
     "tslint": "^5.20.1",
-    "typescript": "^3.7.3",
-    "webpack": "^4.41.2",
+    "typescript": "^3.7.4",
+    "webpack": "^4.41.5",
     "webpack-cli": "^3.3.10",
     "zotero-plugin": "0.0.95"
   }
