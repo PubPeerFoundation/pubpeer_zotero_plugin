@@ -65,15 +65,18 @@ function getCellX(tree, row, col, field) {
     }
   }
 
-  const doi = getDOI(getField(item, 'DOI'), getField(item, 'extra'))
-  if (!doi || !PubPeer.feedback[doi]) return ''
+  const feedback = PubPeer.feedback[getDOI(getField(item, 'DOI'), getField(item, 'extra'))]
+  if (!feedback) return ''
 
   switch (field) {
     case 'text':
-      return `${PubPeer.feedback[doi].total_comments}` // last_commented_at.toISOString().replace(/T.*/, '')
+      return `${feedback.total_comments}` // last_commented_at.toISOString().replace(/T.*/, '')
 
     case 'properties':
-      return ' hasPubPeerComments'
+      const state = feedback.users.map(user => PubPeer.users[user])
+      if (state.includes('priority')) return ' hasHighlightedPubPeerComments'
+      if (state.includes('neutral')) return ' hasPubPeerComments'
+      return ''
   }
 }
 

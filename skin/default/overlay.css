@@ -8,6 +8,12 @@ button *, button:focus *
   box-shadow: none !important;
 }
 
+#zotero-items-tree treechildren::-moz-tree-image(hasHighlightedPubPeerComments)
+{
+  margin: 1px 5px 0;
+  list-style-image: url(chrome://zotero-pubpeer/skin/pubpeer-highlighted.png);
+  height: 16px;
+}
 #zotero-items-tree treechildren::-moz-tree-image(hasPubPeerComments)
 {
   margin: 1px 5px 0;

@@ -19,6 +19,13 @@ function toggleUser() {
   this.value = states.label[state]
   this.setAttribute('data-state', state)
   PubPeer.save()
+
+  // update display panes by issuing a fake item-update notification
+  if (PPItemPane.item) {
+    Zotero.Notifier.trigger('modify', 'item', [PPItemPane.item.id])
+  } else {
+    Zotero.debug('toggleUser but no item set?')
+  }
 }
 
 const xul = 'http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul'
@@ -59,8 +66,12 @@ const PPItemPane = new class { // tslint:disable-line:variable-name
   }
 
   public async refresh() {
-    const doi = this.item?.getField('DOI')
+    const container = document.getElementById('zotero-editpane-pubpeer')
+    for (const hbox of Array.from(container.getElementsByTagNameNS(xul, 'hbox'))) {
+      hbox.remove()
+    }
 
+    const doi = this.item?.getField('DOI')
     let summary = PubPeer.getString('itemPane.noComment')
     const feedback = doi && (await PubPeer.get([doi]))[0]
     if (feedback) {
@@ -79,10 +90,6 @@ const PPItemPane = new class { // tslint:disable-line:variable-name
 
       Zotero.debug(`PubPeer.ZoteroItemPane.refresh: ${JSON.stringify(feedback)}: ${summary}`)
 
-      const container = document.getElementById('zotero-editpane-pubpeer')
-      for (const hbox of Array.from(container.getElementsByTagNameNS(xul, 'hbox'))) {
-        hbox.remove()
-      }
       for (const user of feedback.users) {
         PubPeer.users[user] = PubPeer.users[user] || 'neutral'
 
