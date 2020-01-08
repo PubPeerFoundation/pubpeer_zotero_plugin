@@ -26,7 +26,8 @@
   "xpi": {
     "name": "Pubpeer Plugin for Zotero",
     "updateLink": "https://github.com/PubPeerFoundation/pubpeer_zotero_plugin/releases/download/v{version}/zotero-auto-index-{version}.xpi",
-    "releaseURL": "https://github.com/PubPeerFoundation/pubpeer_zotero_plugin/releases/download/release/"
+    "releaseURL": "https://github.com/PubPeerFoundation/pubpeer_zotero_plugin/releases/download/release/",
+    "iconURL": "chrome://zotero-better-bibtex/skin/pubpeer.svg"
   },
   "devDependencies": {
     "@types/node": "^13.1.4",

@@ -60,7 +60,7 @@ function getCellX(tree, row, col, field) {
       case 'image':
         return 'chrome://zotero-pubpeer/skin/loading.gif'
       case 'properties':
-        return ' PubPeerLoading'
+        return ' pubpeer-state-loading'
       case 'text':
         return ''
     }
@@ -75,9 +75,9 @@ function getCellX(tree, row, col, field) {
 
     case 'properties':
       const state = feedback.users.map(user => PubPeer.users[user])
-      if (state.includes('priority')) return ' hasHighlightedPubPeerComments'
-      if (state.includes('neutral')) return ' hasPubPeerComments'
-      return ''
+      if (state.includes('priority')) return ' pubpeer-state-highlighted'
+      if (state.includes('neutral')) return ' pubpeer-state-neutral'
+      return ' pubpeer-state-muted'
   }
 }
 

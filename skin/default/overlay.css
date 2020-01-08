@@ -8,19 +8,25 @@ button *, button:focus *
   box-shadow: none !important;
 }
 
-#zotero-items-tree treechildren::-moz-tree-image(hasHighlightedPubPeerComments)
+#zotero-items-tree treechildren::-moz-tree-image(pubpeer-state-highlighted)
 {
   margin: 1px 5px 0;
   list-style-image: url(chrome://zotero-pubpeer/skin/pubpeer-highlighted.png);
   height: 16px;
 }
-#zotero-items-tree treechildren::-moz-tree-image(hasPubPeerComments)
+#zotero-items-tree treechildren::-moz-tree-image(pubpeer-state-neutral)
 {
   margin: 1px 5px 0;
   list-style-image: url(chrome://zotero-pubpeer/skin/pubpeer.png);
   height: 16px;
 }
-#zotero-items-tree treechildren::-moz-tree-image(PubPeerLoading)
+#zotero-items-tree treechildren::-moz-tree-image(pubpeer-state-muted)
+{
+  margin: 1px 5px 0;
+  list-style-image: url(chrome://zotero-pubpeer/skin/pubpeer-muted.png);
+  height: 16px;
+}
+#zotero-items-tree treechildren::-moz-tree-image(pubpeer-state-loading)
 {
   margin: 1px 5px 0;
   list-style-image: url(chrome://zotero-pubpeer/skin/loading.png);
