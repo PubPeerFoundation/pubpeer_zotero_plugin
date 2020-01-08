@@ -1,10 +1,11 @@
 Components.utils.import('resource://gre/modules/AddonManager.jsm')
 declare const AddonManager: any
 
-declare const Zotero: any
+declare const Zotero: IZotero
 declare const Components: any
 
 import { patch as $patch$ } from './monkey-patch'
+import { debug } from './debug'
 
 interface Feedback {
   id: string // DOI
@@ -108,7 +109,7 @@ $patch$(Zotero.Item.prototype, 'getField', original => function Zotero_Item_prot
 
 const ready = Zotero.Promise.defer()
 
-export let PubPeer = new class { // tslint:disable-line:variable-name
+class CPubPeer { // tslint:disable-line:variable-name
   // public ready: Promise<boolean> = ready.promise
   public ready: any = ready.promise
   public feedback: { [DOI: string]: Feedback } = {}
@@ -175,7 +176,7 @@ export let PubPeer = new class { // tslint:disable-line:variable-name
         })
 
         for (const feedback of (pubpeer?.response?.feedbacks || [])) {
-          if (feedback.last_commented_at.timezone !== 'UTC') Zotero.debug(`PubPeer.get: ${feedback.id} has timezone ${feedback.last_commented_at.timezone}`)
+          if (feedback.last_commented_at.timezone !== 'UTC') debug(`PubPeer.get: ${feedback.id} has timezone ${feedback.last_commented_at.timezone}`)
           this.feedback[feedback.id] = {
             ...feedback,
             last_commented_at: new Date(feedback.last_commented_at.date + 'Z'),
@@ -186,7 +187,7 @@ export let PubPeer = new class { // tslint:disable-line:variable-name
           }
         }
       } catch (err) {
-        Zotero.debug(`PubPeer.get(${fetch}): ${err}`)
+        debug(`PubPeer.get(${fetch}): ${err}`)
       }
     }
 
@@ -230,6 +231,8 @@ export let PubPeer = new class { // tslint:disable-line:variable-name
     if (dois.length) await this.get(dois)
   }
 }
+const PubPeer = new CPubPeer // tslint:disable-line:variable-name
+export = PubPeer
 
 // used in zoteroPane.ts
 AddonManager.addAddonListener({

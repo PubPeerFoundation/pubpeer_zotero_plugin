@@ -1,9 +1,9 @@
-declare const Zotero: any
+declare const Zotero: IZotero
 declare const Components: any
 declare const ZoteroItemPane: any
 
 import { patch as $patch$ } from './monkey-patch'
-import { PubPeer } from './pubpeer'
+import { debug } from './debug'
 
 const states = {
   name: [ 'neutral', 'priority', 'muted' ],
@@ -14,17 +14,17 @@ function toggleUser() {
   const user = this.getAttribute('data-user')
   const state = states.name[(states.name.indexOf(this.getAttribute('data-state')) + 1) % states.name.length]
 
-  PubPeer.users[user] = (state as 'neutral') // bypass TS2322
+  Zotero.PubPeer.users[user] = (state as 'neutral') // bypass TS2322
   this.parentElement.setAttribute('class', `pubpeer-user pubpeer-user-${state}`)
   this.value = states.label[state]
   this.setAttribute('data-state', state)
-  PubPeer.save()
+  Zotero.PubPeer.save()
 
   // update display panes by issuing a fake item-update notification
   if (PPItemPane.item) {
     Zotero.Notifier.trigger('modify', 'item', [PPItemPane.item.id])
   } else {
-    Zotero.debug('toggleUser but no item set?')
+    debug('toggleUser but no item set?')
   }
 }
 
@@ -72,10 +72,10 @@ const PPItemPane = new class { // tslint:disable-line:variable-name
     }
 
     const doi = this.item?.getField('DOI')
-    let summary = PubPeer.getString('itemPane.noComment')
-    const feedback = doi && (await PubPeer.get([doi]))[0]
+    let summary = Zotero.PubPeer.getString('itemPane.noComment')
+    const feedback = doi && (await Zotero.PubPeer.get([doi]))[0]
     if (feedback) {
-      summary = PubPeer.getString('itemPane.summary', {...feedback, users: feedback.users.join(', '), last_commented_at: feedback.last_commented_at.toLocaleString() }, true)
+      summary = Zotero.PubPeer.getString('itemPane.summary', {...feedback, users: feedback.users.join(', '), last_commented_at: feedback.last_commented_at.toLocaleString() }, true)
       summary = `<div xmlns:html="http://www.w3.org/1999/xhtml">${summary}</div>`
       summary = summary.replace(/(<\/?)/g, '$1html:')
 
@@ -88,17 +88,17 @@ const PPItemPane = new class { // tslint:disable-line:variable-name
       }
       summary = this.dom.serializer.serializeToString(html)
 
-      Zotero.debug(`PubPeer.ZoteroItemPane.refresh: ${JSON.stringify(feedback)}: ${summary}`)
+      debug(`PubPeer.ZoteroItemPane.refresh: ${JSON.stringify(feedback)}: ${summary}`)
 
       for (const user of feedback.users) {
-        PubPeer.users[user] = PubPeer.users[user] || 'neutral'
+        Zotero.PubPeer.users[user] = Zotero.PubPeer.users[user] || 'neutral'
 
         const hbox: any = container.appendChild(document.createElementNS(xul, 'hbox'))
         hbox.setAttribute('align', 'center')
-        hbox.setAttribute('class', `pubpeer-user pubpeer-user-${PubPeer.users[user]}`)
+        hbox.setAttribute('class', `pubpeer-user pubpeer-user-${Zotero.PubPeer.users[user]}`)
 
         const cb: any = hbox.appendChild(document.createElementNS(xul, 'label'))
-        const state = PubPeer.users[user]
+        const state = Zotero.PubPeer.users[user]
         cb.setAttribute('class', 'pubpeer-checkbox')
         cb.value = states.label[state]
         cb.setAttribute('data-user', user)

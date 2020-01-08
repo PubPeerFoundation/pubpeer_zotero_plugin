@@ -1,5 +1,6 @@
 {
   "compilerOptions": {
+    "declaration": false,
     "allowUnreachableCode": false,
     "importHelpers": true,
     "target": "es2017",
@@ -26,11 +27,11 @@
     "resource/**/*",
     "zotero-webpack/**/*",
     "setup/**/*",
+    "typings/*",
     "*.ts"
   ],
   "exclude": [
     "node_modules",
-    "**/*.spec.ts",
-    "typings"
+    "**/*.spec.ts"
   ]
 }
