@@ -10,8 +10,8 @@
     <tab id="zotero-editpane-pubpeer-tab" label="PubPeer"/>
   </tabs>
   <tabpanels id="zotero-view-item">
-    <tabpanel id="zotero-editpane-pubpeer-tab" flex="1" orient="vertical">
-      <vbox flex="1" style="overflow: auto">
+    <tabpanel id="zotero-editpane-pubpeer-tabpanel" flex="1" orient="vertical">
+      <vbox id="zotero-editpane-pubpeer" flex="1" style="overflow: auto">
         <description>
           <html:div id="zotero-editpane-pubpeer-summary" xmlns:html="http://www.w3.org/1999/xhtml" type="content"/>
         </description>
@@ -22,5 +22,6 @@
   <!-- Include the main extension logic -->
   <script src="chrome://zotero/content/include.js"/>
   <script src="chrome://zotero-pubpeer/content/webpack.js"/>
+  <script src="chrome://zotero-pubpeer/content/PubPeer.js"/>
   <script src="chrome://zotero-pubpeer/content/PubPeer.itemPane.js"/>
 </overlay>

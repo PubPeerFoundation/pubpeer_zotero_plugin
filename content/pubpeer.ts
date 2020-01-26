@@ -1,17 +1,18 @@
 Components.utils.import('resource://gre/modules/AddonManager.jsm')
 declare const AddonManager: any
 
-declare const Zotero: any
+declare const Zotero: IZotero
 declare const Components: any
 
 import { patch as $patch$ } from './monkey-patch'
+import { debug } from './debug'
 
 interface Feedback {
   id: string // DOI
   title: string
   url: string
   total_comments: number
-  users: string
+  users: string[]
   last_commented_at: Date
 }
 
@@ -59,21 +60,24 @@ function getCellX(tree, row, col, field) {
       case 'image':
         return 'chrome://zotero-pubpeer/skin/loading.gif'
       case 'properties':
-        return ' PubPeerLoading'
+        return ' pubpeer-state-loading'
       case 'text':
         return ''
     }
   }
 
-  const doi = getDOI(getField(item, 'DOI'), getField(item, 'extra'))
-  if (!doi || !PubPeer.feedback[doi]) return ''
+  const feedback = PubPeer.feedback[getDOI(getField(item, 'DOI'), getField(item, 'extra'))]
+  if (!feedback) return ''
 
   switch (field) {
     case 'text':
-      return `${PubPeer.feedback[doi].total_comments}` // last_commented_at.toISOString().replace(/T.*/, '')
+      return `${feedback.total_comments}` // last_commented_at.toISOString().replace(/T.*/, '')
 
     case 'properties':
-      return ' hasPubPeerComments'
+      const state = feedback.users.map(user => PubPeer.users[user])
+      if (state.includes('priority')) return ' pubpeer-state-highlighted'
+      if (state.includes('neutral')) return ' pubpeer-state-neutral'
+      return ' pubpeer-state-muted'
   }
 }
 
@@ -105,10 +109,11 @@ $patch$(Zotero.Item.prototype, 'getField', original => function Zotero_Item_prot
 
 const ready = Zotero.Promise.defer()
 
-export let PubPeer = new class { // tslint:disable-line:variable-name
+class CPubPeer { // tslint:disable-line:variable-name
   // public ready: Promise<boolean> = ready.promise
   public ready: any = ready.promise
   public feedback: { [DOI: string]: Feedback } = {}
+  public users: Record<string, 'neutral' | 'priority' | 'muted'> = this.load()
   public uninstalled: boolean = false
 
   private bundle: any
@@ -116,6 +121,18 @@ export let PubPeer = new class { // tslint:disable-line:variable-name
 
   constructor() {
     this.bundle = Components.classes['@mozilla.org/intl/stringbundle;1'].getService(Components.interfaces.nsIStringBundleService).createBundle('chrome://zotero-pubpeer/locale/zotero-pubpeer.properties')
+  }
+
+  public load() {
+    try {
+      return JSON.parse(Zotero.Prefs.get('pubpeer.users') || '{}')
+    } catch (err) {
+      return {}
+    }
+  }
+
+  public save() {
+    Zotero.Prefs.set('pubpeer.users', JSON.stringify(this.users))
   }
 
   public async start() {
@@ -159,11 +176,18 @@ export let PubPeer = new class { // tslint:disable-line:variable-name
         })
 
         for (const feedback of (pubpeer?.response?.feedbacks || [])) {
-          if (feedback.last_commented_at.timezone !== 'UTC') Zotero.debug(`PubPeer.get: ${feedback.id} has timezone ${feedback.last_commented_at.timezone}`)
-          this.feedback[feedback.id] = {...feedback, last_commented_at: new Date(feedback.last_commented_at.date + 'Z') }
+          if (feedback.last_commented_at.timezone !== 'UTC') debug(`PubPeer.get: ${feedback.id} has timezone ${feedback.last_commented_at.timezone}`)
+          this.feedback[feedback.id] = {
+            ...feedback,
+            last_commented_at: new Date(feedback.last_commented_at.date + 'Z'),
+            users: feedback.users.split(/\s*,\s*/).filter(u => u),
+          }
+          for (const user of this.feedback[feedback.id].users) {
+            this.users[user] = this.users[user] || 'neutral'
+          }
         }
       } catch (err) {
-        Zotero.debug(`PubPeer.get(${fetch}): ${err}`)
+        debug(`PubPeer.get(${fetch}): ${err}`)
       }
     }
 
@@ -207,6 +231,8 @@ export let PubPeer = new class { // tslint:disable-line:variable-name
     if (dois.length) await this.get(dois)
   }
 }
+const PubPeer = new CPubPeer // tslint:disable-line:variable-name
+export = PubPeer
 
 // used in zoteroPane.ts
 AddonManager.addAddonListener({

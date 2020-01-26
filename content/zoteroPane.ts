@@ -1,8 +1,8 @@
-declare const Zotero: any
+declare const Zotero: IZotero
 declare const Components: any
 
-import { PubPeer } from './pubpeer'
 import { patch as $patch$ } from './monkey-patch'
+// import { debug } from './debug'
 
 const PPZoteroPane = new class { // tslint:disable-line:variable-name
   private selectedItem: any
@@ -10,7 +10,7 @@ const PPZoteroPane = new class { // tslint:disable-line:variable-name
   public async load() {
     document.getElementById('zotero-itemmenu').addEventListener('popupshowing', this, false)
 
-    await PubPeer.start()
+    await Zotero.PubPeer.start()
   }
 
   public async unload() {
@@ -18,8 +18,6 @@ const PPZoteroPane = new class { // tslint:disable-line:variable-name
   }
 
   public handleEvent(event) {
-    Zotero.debug(event)
-
     const selectedItems = Zotero.getActiveZoteroPane().getSelectedItems()
     this.selectedItem = selectedItems.length ? selectedItems[0] : null
 
@@ -38,7 +36,7 @@ const PPZoteroPane = new class { // tslint:disable-line:variable-name
     const doi = this.selectedItem ? this.selectedItem.getField('DOI') : ''
     if (!doi) return
 
-    const feedback = (await PubPeer.get([ doi ]))[0]
+    const feedback = (await Zotero.PubPeer.get([ doi ]))[0]
     if (feedback) {
       let output = `The selected item has ${feedback.total_comments} ${feedback.total_comments === 1 ? 'comment' : 'comments'} on PubPeer`
       if (feedback.total_comments) output += ` ${feedback.url}`
