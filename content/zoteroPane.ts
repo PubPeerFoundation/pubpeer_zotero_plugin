@@ -1,5 +1,6 @@
 declare const Zotero: IZotero
 declare const Components: any
+const usingXULTree = typeof Zotero.ItemTreeView !== 'undefined'
 
 import { patch as $patch$ } from './monkey-patch'
 // import { debug } from './debug'

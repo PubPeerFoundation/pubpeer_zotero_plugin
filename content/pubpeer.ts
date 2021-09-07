@@ -2,6 +2,7 @@ Components.utils.import('resource://gre/modules/AddonManager.jsm')
 declare const AddonManager: any
 
 declare const Zotero: IZotero
+declare const ZoteroPane: any
 declare const Components: any
 
 import { patch as $patch$ } from './monkey-patch'
@@ -39,64 +40,112 @@ function getDOI(doi, extra) {
   return dois[0] || ''
 }
 
-const itemTreeViewWaiting: Record<string, boolean> = {}
+if (typeof Zotero.ItemTreeView === 'undefined') {
+  const itemTree = require('zotero/itemTree')
 
-function getCellX(tree, row, col, field) {
-  if (col.id !== 'zotero-items-column-pubpeer') return ''
+  $patch$(itemTree.prototype, 'getColumns', original => function Zotero_ItemTree_prototype_getColumns() {
+    const columns = original.apply(this, arguments)
+    const insertAfter: number = columns.findIndex(column => column.dataKey === 'title')
+    columns.splice(insertAfter + 1, 0, {
+      dataKey: 'pubpeer',
+      label: 'PubPeer',
+      flex: '1',
+      zoteroPersist: new Set(['width', 'ordinal', 'hidden', 'sortActive', 'sortDirection']),
+    })
 
-  const item = tree.getRow(row).ref
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return columns
+  })
 
-  if (item.isNote() || item.isAttachment()) return ''
+  $patch$(itemTree.prototype, '_renderCell', original => function Zotero_ItemTree_prototype_renderCell(index, data, col) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    if (col.dataKey !== 'pubpeer') return original.apply(this, arguments)
 
-  if (PubPeer.ready.isPending()) { // tslint:disable-line:no-use-before-declare
-    const id = `${field}.${item.id}`
-    if (!itemTreeViewWaiting[id]) {
-      // tslint:disable-next-line:no-use-before-declare
-      PubPeer.ready.then(() => tree._treebox.invalidateCell(row, col))
-      itemTreeViewWaiting[id] = true
+    const item = this.getRow(index).ref
+    if (!item.isRegularItem()) return ''
+
+    if (Zotero.PubPeer.ready.isPending()) { // tslint:disable-line:no-use-before-declare
+      const loading = document.createElementNS('http://www.w3.org/1999/xhtml', 'img')
+      loading.className = 'pubpeer-state-loading'
+      loading.setAttribute('src', 'chrome://zotero-pubpeer/skin/loading.gif')
+      return loading
     }
+
+    const feedback = Zotero.PubPeer.feedback[getDOI(getField(item, 'DOI'), getField(item, 'extra'))]
+    const state = feedback.users.map(user => Zotero.PubPeer.users[user])
+
+    const cell = document.createElementNS('http://www.w3.org/1999/xhtml', 'span')
+    cell.innerText = `${feedback.total_comments}`
+    if (state.includes('priority')) {
+      cell.className = 'pubpeer-state-highlighted'
+    } else if (state.includes('neutral')) {
+      cell.className = 'pubpeer-state-neutral'
+    } else {
+      cell.className = 'pubpeer-state-muted'
+    }
+
+    return cell
+  })
+} else {
+  const itemTreeViewWaiting: Record<string, boolean> = {}
+
+  function getCellX(tree, row, col, field) {
+    if (col.id !== 'zotero-items-column-pubpeer') return ''
+
+    const item = tree.getRow(row).ref
+
+    if (item.isNote() || item.isAttachment()) return ''
+
+    if (Zotero.PubPeer.ready.isPending()) { // tslint:disable-line:no-use-before-declare
+      const id = `${field}.${item.id}`
+      if (!itemTreeViewWaiting[id]) {
+        // tslint:disable-next-line:no-use-before-declare
+        Zotero.PubPeer.ready.then(() => tree._treebox.invalidateCell(row, col))
+        itemTreeViewWaiting[id] = true
+      }
+
+      switch (field) {
+        case 'image':
+          return 'chrome://zotero-pubpeer/skin/loading.gif'
+        case 'properties':
+          return ' pubpeer-state-loading'
+        case 'text':
+          return ''
+      }
+    }
+
+    const feedback = Zotero.PubPeer.feedback[getDOI(getField(item, 'DOI'), getField(item, 'extra'))]
+    if (!feedback) return ''
 
     switch (field) {
-      case 'image':
-        return 'chrome://zotero-pubpeer/skin/loading.gif'
-      case 'properties':
-        return ' pubpeer-state-loading'
       case 'text':
-        return ''
+        return `${feedback.total_comments}` // last_commented_at.toISOString().replace(/T.*/, '')
+
+      case 'properties':
+        const state = feedback.users.map(user => Zotero.PubPeer.users[user])
+        if (state.includes('priority')) return ' pubpeer-state-highlighted'
+        if (state.includes('neutral')) return ' pubpeer-state-neutral'
+        return ' pubpeer-state-muted'
     }
   }
 
-  const feedback = PubPeer.feedback[getDOI(getField(item, 'DOI'), getField(item, 'extra'))]
-  if (!feedback) return ''
+  $patch$(Zotero.ItemTreeView.prototype, 'getCellProperties', original => function Zotero_ItemTreeView_prototype_getCellProperties(row, col, prop) {
+    return (original.apply(this, arguments) + getCellX(this, row, col, 'properties')).trim()
+  })
 
-  switch (field) {
-    case 'text':
-      return `${feedback.total_comments}` // last_commented_at.toISOString().replace(/T.*/, '')
+  $patch$(Zotero.ItemTreeView.prototype, 'getCellText', original => function Zotero_ItemTreeView_prototype_getCellText(row, col) {
+    if (col.id !== 'zotero-items-column-pubpeer') return original.apply(this, arguments)
 
-    case 'properties':
-      const state = feedback.users.map(user => PubPeer.users[user])
-      if (state.includes('priority')) return ' pubpeer-state-highlighted'
-      if (state.includes('neutral')) return ' pubpeer-state-neutral'
-      return ' pubpeer-state-muted'
-  }
+    return getCellX(this, row, col, 'text')
+  })
 }
-
-$patch$(Zotero.ItemTreeView.prototype, 'getCellProperties', original => function Zotero_ItemTreeView_prototype_getCellProperties(row, col, prop) {
-  return (original.apply(this, arguments) + getCellX(this, row, col, 'properties')).trim()
-})
-
-$patch$(Zotero.ItemTreeView.prototype, 'getCellText', original => function Zotero_ItemTreeView_prototype_getCellText(row, col) {
-  if (col.id !== 'zotero-items-column-pubpeer') return original.apply(this, arguments)
-
-  return getCellX(this, row, col, 'text')
-})
 
 $patch$(Zotero.Item.prototype, 'getField', original => function Zotero_Item_prototype_getField(field, unformatted, includeBaseMapped) {
   try {
     if (field === 'pubpeer') {
-      if (PubPeer.ready.isPending()) return '' // tslint:disable-line:no-use-before-declare
+      if (Zotero.PubPeer.ready.isPending()) return '' // tslint:disable-line:no-use-before-declare
       const doi = getDOI(getField(this, 'DOI'), getField(this, 'extra'))
-      if (!doi || !PubPeer.feedback[doi]) return ''
+      if (!doi || !Zotero.PubPeer.feedback[doi]) return ''
       return ' '
     }
   } catch (err) {
@@ -109,9 +158,9 @@ $patch$(Zotero.Item.prototype, 'getField', original => function Zotero_Item_prot
 
 const ready = Zotero.Promise.defer()
 
-class CPubPeer { // tslint:disable-line:variable-name
-  // public ready: Promise<boolean> = ready.promise
-  public ready: any = ready.promise
+export class PubPeer { // tslint:disable-line:variable-name
+  public ready: Promise<boolean> & { isPending: () => boolean } = ready.promise
+  // public ready: any = ready.promise
   public feedback: { [DOI: string]: Feedback } = {}
   public users: Record<string, 'neutral' | 'priority' | 'muted'> = this.load()
   public uninstalled: boolean = false
@@ -142,6 +191,7 @@ class CPubPeer { // tslint:disable-line:variable-name
     await Zotero.Schema.schemaUpdatePromise
     await this.refresh()
     ready.resolve(true)
+    if (typeof Zotero.ItemTreeView === 'undefined') ZoteroPane.itemsView.refreshAndMaintainSelection()
 
     Zotero.Notifier.registerObserver(this, ['item'], 'PubPeer', 1)
   }
@@ -231,13 +281,13 @@ class CPubPeer { // tslint:disable-line:variable-name
     if (dois.length) await this.get(dois)
   }
 }
-const PubPeer = new CPubPeer // tslint:disable-line:variable-name
-export = PubPeer
+
+Zotero.PubPeer = new PubPeer
 
 // used in zoteroPane.ts
 AddonManager.addAddonListener({
   onUninstalling(addon, needsRestart) {
-    if (addon.id === 'pubpeer@pubpeer.com') PubPeer.uninstalled = true
+    if (addon.id === 'pubpeer@pubpeer.com') Zotero.PubPeer.uninstalled = true
   },
 
   onDisabling(addon, needsRestart) { this.onUninstalling(addon, needsRestart) },
