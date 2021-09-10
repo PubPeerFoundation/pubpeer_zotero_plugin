@@ -5,7 +5,7 @@
 <overlay id="zotero-pubpeer-overlay" xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul">
   
   <menupopup id="zotero-itemmenu">
-    <menuitem id="menu-pubpeer-get-link" label="&zotero.pubpeer.item-menu.get-link;" oncommand="Zotero.PubPeer.zoteroPane.run('getPubPeerLink')"/>
+    <menuitem id="menu-pubpeer-get-link" label="&zotero.pubpeer.item-menu.get-link;" oncommand="Zotero.PubPeer.ZoteroPane.run('getPubPeerLink')"/>
   </menupopup>
 
   <treecols id="zotero-items-columns-header">
@@ -20,7 +20,14 @@
 
   <!-- Include the main extension logic -->
   <script src="chrome://zotero/content/include.js"/>
-  <script src="chrome://zotero-pubpeer/content/webpack.js"/>
-  <script src="chrome://zotero-pubpeer/content/PubPeer.js"/>
-  <script src="chrome://zotero-pubpeer/content/PubPeer.zoteroPane.js"/>
+  <script src="chrome://zotero-pubpeer/content/pubpeer.js"/>
+  <script>
+    var globals = Function('return this')();
+    window.addEventListener('load', event => {
+      Zotero.PubPeer.ZoteroPane.load(globals).catch(err => Zotero.logError(err))
+    }, false)
+    window.addEventListener('unload', event => {
+      Zotero.PubPeer.ZoteroPane.unload().catch(err => Zotero.logError(err))
+    }, false)
+  </script>
 </overlay>

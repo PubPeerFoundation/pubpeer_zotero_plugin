@@ -7,6 +7,8 @@ declare const Components: any
 
 import { patch as $patch$ } from './monkey-patch'
 import { debug } from './debug'
+import { ItemPane } from './itemPane'
+import { ZoteroPane as ZoteroPaneHelper } from './zoteroPane'
 
 interface Feedback {
   id: string // DOI
@@ -159,6 +161,9 @@ $patch$(Zotero.Item.prototype, 'getField', original => function Zotero_Item_prot
 const ready = Zotero.Promise.defer()
 
 export class PubPeer { // tslint:disable-line:variable-name
+  public ItemPane = new ItemPane // tslint:disable-line:variable-name
+  public ZoteroPane = new ZoteroPaneHelper // tslint:disable-line:variable-name
+
   public ready: Promise<boolean> & { isPending: () => boolean } = ready.promise
   // public ready: any = ready.promise
   public feedback: { [DOI: string]: Feedback } = {}

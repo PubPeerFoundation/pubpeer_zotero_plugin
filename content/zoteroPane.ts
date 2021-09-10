@@ -5,17 +5,21 @@ const usingXULTree = typeof Zotero.ItemTreeView !== 'undefined'
 import { patch as $patch$ } from './monkey-patch'
 // import { debug } from './debug'
 
-const PPZoteroPane = new class { // tslint:disable-line:variable-name
+const loaded: { document: HTMLDocument } = { document: null }
+
+export class ZoteroPane { // tslint:disable-line:variable-name
   private selectedItem: any
 
-  public async load() {
-    document.getElementById('zotero-itemmenu').addEventListener('popupshowing', this, false)
+  public async load(globals) {
+    loaded.document = globals.document
+
+    loaded.document.getElementById('zotero-itemmenu').addEventListener('popupshowing', this, false)
 
     await Zotero.PubPeer.start()
   }
 
   public async unload() {
-    document.getElementById('zotero-itemmenu').removeEventListener('popupshowing', this, false)
+    loaded.document.getElementById('zotero-itemmenu').removeEventListener('popupshowing', this, false)
   }
 
   public handleEvent(event) {
@@ -26,7 +30,7 @@ const PPZoteroPane = new class { // tslint:disable-line:variable-name
       this.selectedItem = null
     }
 
-    document.getElementById('menu-pubpeer-get-link').hidden = !this.selectedItem
+    loaded.document.getElementById('menu-pubpeer-get-link').hidden = !this.selectedItem
   }
 
   public run(method, ...args) {
@@ -57,15 +61,3 @@ $patch$(Zotero.getActiveZoteroPane(), 'serializePersist', original => function()
     Zotero.Prefs.set('pane.persist', JSON.stringify(persisted))
   }
 })
-
-window.addEventListener('load', event => {
-  PPZoteroPane.load().catch(err => Zotero.logError(err))
-}, false)
-window.addEventListener('unload', event => {
-  PPZoteroPane.unload().catch(err => Zotero.logError(err))
-}, false)
-
-export = PPZoteroPane
-
-// otherwise this entry point won't be reloaded: https://github.com/webpack/webpack/issues/156
-delete require.cache[module.id]

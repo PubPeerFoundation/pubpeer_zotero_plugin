@@ -21,7 +21,13 @@
 
   <!-- Include the main extension logic -->
   <script src="chrome://zotero/content/include.js"/>
-  <script src="chrome://zotero-pubpeer/content/webpack.js"/>
-  <script src="chrome://zotero-pubpeer/content/PubPeer.js"/>
-  <script src="chrome://zotero-pubpeer/content/PubPeer.itemPane.js"/>
+  <script>
+    var globals = Function('return this')();
+    window.addEventListener('load', event => {
+      Zotero.PubPeer.ItemPane.load(globals).catch(err => Zotero.logError(err))
+    }, false)
+    window.addEventListener('unload', event => {
+      Zotero.PubPeer.ItemPane.unload().catch(err => Zotero.logError(err))
+    }, false)
+  </script>
 </overlay>
