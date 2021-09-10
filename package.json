@@ -8,8 +8,7 @@
     "prebuild": "npm run lint",
     "build": "node esbuild.js",
     "postbuild": "zotero-plugin-zipup build zotero-pubpeer",
-    "release": "zotero-plugin-release",
-    "postversion": "git push --follow-tags"
+    "postversion": "git push --follow-tags && zotero-plugin-release"
   },
   "repository": {
     "type": "git",
