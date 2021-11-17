@@ -1,0 +1,6 @@
+[profile]
+name = BBTZ5TEST
+path = ~/.BBTZ5TEST
+
+[log]
+path = ~/.BBTZ5TEST.log

@@ -5,6 +5,8 @@ declare const ZoteroItemPane: any
 import { patch as $patch$ } from './monkey-patch'
 import { debug } from './debug'
 
+const loaded: { document: HTMLDocument } = { document: null }
+
 const states = {
   name: [ 'neutral', 'priority', 'muted' ],
   label: { muted: '\u2612', neutral: '\u2610', priority: '\u2611' },
@@ -21,8 +23,8 @@ function toggleUser() {
   Zotero.PubPeer.save()
 
   // update display panes by issuing a fake item-update notification
-  if (PPItemPane.item) {
-    Zotero.Notifier.trigger('modify', 'item', [PPItemPane.item.id])
+  if (Zotero.PubPeer.ItemPane.item) {
+    Zotero.Notifier.trigger('modify', 'item', [Zotero.PubPeer.ItemPane.item.id])
   } else {
     debug('toggleUser but no item set?')
   }
@@ -30,7 +32,7 @@ function toggleUser() {
 
 const xul = 'http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul'
 
-const PPItemPane = new class { // tslint:disable-line:variable-name
+export class ItemPane {
   public item: any = null
 
   private observer: number = null
@@ -57,7 +59,8 @@ const PPItemPane = new class { // tslint:disable-line:variable-name
     await this.refresh()
   }
 
-  public async load() {
+  public async load(globals: Record<string, any>) {
+    loaded.document = globals.document
     this.observer = Zotero.Notifier.registerObserver(this, ['item'], 'PubPeer')
   }
 
@@ -66,7 +69,7 @@ const PPItemPane = new class { // tslint:disable-line:variable-name
   }
 
   public async refresh() {
-    const container = document.getElementById('zotero-editpane-pubpeer')
+    const container = loaded.document.getElementById('zotero-editpane-pubpeer')
     for (const hbox of Array.from(container.getElementsByTagNameNS(xul, 'hbox'))) {
       hbox.remove()
     }
@@ -93,11 +96,11 @@ const PPItemPane = new class { // tslint:disable-line:variable-name
       for (const user of feedback.users) {
         Zotero.PubPeer.users[user] = Zotero.PubPeer.users[user] || 'neutral'
 
-        const hbox: any = container.appendChild(document.createElementNS(xul, 'hbox'))
+        const hbox: any = container.appendChild(loaded.document.createElementNS(xul, 'hbox'))
         hbox.setAttribute('align', 'center')
         hbox.setAttribute('class', `pubpeer-user pubpeer-user-${Zotero.PubPeer.users[user]}`)
 
-        const cb: any = hbox.appendChild(document.createElementNS(xul, 'label'))
+        const cb: any = hbox.appendChild(loaded.document.createElementNS(xul, 'label'))
         const state = Zotero.PubPeer.users[user]
         cb.setAttribute('class', 'pubpeer-checkbox')
         cb.value = states.label[state]
@@ -105,14 +108,14 @@ const PPItemPane = new class { // tslint:disable-line:variable-name
         cb.setAttribute('data-state', state)
         cb.onclick = toggleUser
 
-        const label: any = hbox.appendChild(document.createElementNS(xul, 'label'))
+        const label: any = hbox.appendChild(loaded.document.createElementNS(xul, 'label'))
         label.setAttribute('class', 'pubpeer-username')
         label.setAttribute('value', user)
         label.setAttribute('flex', '8')
       }
     }
 
-    document.getElementById('zotero-editpane-pubpeer-summary').innerHTML = summary
+    loaded.document.getElementById('zotero-editpane-pubpeer-summary').innerHTML = summary
   }
 }
 
@@ -120,12 +123,12 @@ $patch$(ZoteroItemPane, 'viewItem', original => async function(item, mode, index
   let pubPeerIndex = -1
 
   try {
-    PPItemPane.item = item
+    Zotero.PubPeer.ItemPane.item = item
 
-    const tabPanels = document.getElementById('zotero-editpane-tabs')
+    const tabPanels = loaded.document.getElementById('zotero-editpane-tabs')
     pubPeerIndex = Array.from(tabPanels.children).findIndex(child => child.id === 'zotero-editpane-pubpeer-tab')
 
-    PPItemPane.refresh()
+    Zotero.PubPeer.ItemPane.refresh()
   } catch (err) {
     Zotero.logError(`PubPeer.ZoteroItemPane.viewItem: ${err}`)
     pubPeerIndex = -1
@@ -133,12 +136,3 @@ $patch$(ZoteroItemPane, 'viewItem', original => async function(item, mode, index
 
   if (index !== pubPeerIndex) return await original.apply(this, arguments)
 })
-
-window.addEventListener('load', event => {
-  PPItemPane.load().catch(err => Zotero.logError(err))
-}, false)
-window.addEventListener('unload', event => {
-  PPItemPane.unload().catch(err => Zotero.logError(err))
-}, false)
-
-delete require.cache[module.id]

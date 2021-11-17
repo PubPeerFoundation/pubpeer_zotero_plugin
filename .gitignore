@@ -1,3 +1,4 @@
+.DS_Store
 wiki
 gen
 build
@@ -11,3 +12,4 @@ build
 *.xpi
 node_modules
 .env
+start.ini
