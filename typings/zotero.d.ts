@@ -4,6 +4,8 @@ declare global {
   interface IZotero {
     PubPeer: PubPeer
 
+    ProgressWindow: any
+    Integration: any
     debug: any
     logError: any
     Prefs: any

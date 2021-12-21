@@ -10,6 +10,24 @@ import { debug } from './debug'
 import { ItemPane } from './itemPane'
 import { ZoteroPane as ZoteroPaneHelper } from './zoteroPane'
 
+const seconds = 1000
+
+// eslint-disable-next-line no-magic-numbers
+export function flash(title: string, body?: string, timeout = 8): void {
+  try {
+    debug('flash:', JSON.stringify({title, body}))
+    const pw = new Zotero.ProgressWindow()
+    pw.changeHeadline(`PubPeer: ${title}`)
+    if (!body) body = title
+    if (Array.isArray(body)) body = body.join('\n')
+    pw.addDescription(body)
+    pw.show()
+    pw.startCloseTimer(timeout * seconds)
+  } catch (err) {
+    debug('flash failed:', JSON.stringify({title, body}), err.message)
+  }
+}
+
 interface Feedback {
   id: string // DOI
   title: string
@@ -33,9 +51,11 @@ function getField(item, field) {
     return ''
   }
 }
-function getDOI(doi, extra) {
+function getDOI(item) {
+  const doi = getField(item, 'DOI')
   if (doi) return doi
 
+  const extra = getField(item, 'extra')
   if (!extra) return ''
 
   const dois = extra.split('\n').map(line => line.match(/^DOI:\s*(.+)/i)).filter(line => line).map(line => line[1].trim())
@@ -73,7 +93,7 @@ if (typeof Zotero.ItemTreeView === 'undefined') {
       return loading
     }
 
-    const feedback = Zotero.PubPeer.feedback[getDOI(getField(item, 'DOI'), getField(item, 'extra'))]
+    const feedback = Zotero.PubPeer.feedback[getDOI(item)]
     const state = feedback.users.map(user => Zotero.PubPeer.users[user])
 
     const cell = document.createElementNS('http://www.w3.org/1999/xhtml', 'span')
@@ -116,7 +136,7 @@ if (typeof Zotero.ItemTreeView === 'undefined') {
       }
     }
 
-    const feedback = Zotero.PubPeer.feedback[getDOI(getField(item, 'DOI'), getField(item, 'extra'))]
+    const feedback = Zotero.PubPeer.feedback[getDOI(item)]
     if (!feedback) return ''
 
     switch (field) {
@@ -146,7 +166,7 @@ $patch$(Zotero.Item.prototype, 'getField', original => function Zotero_Item_prot
   try {
     if (field === 'pubpeer') {
       if (Zotero.PubPeer.ready.isPending()) return '' // tslint:disable-line:no-use-before-declare
-      const doi = getDOI(getField(this, 'DOI'), getField(this, 'extra'))
+      const doi = getDOI(this)
       if (!doi || !Zotero.PubPeer.feedback[doi]) return ''
       return ' '
     }
@@ -156,6 +176,25 @@ $patch$(Zotero.Item.prototype, 'getField', original => function Zotero_Item_prot
   }
 
   return original.apply(this, arguments)
+})
+
+$patch$(Zotero.Integration.Session.prototype, 'addCitation', original => async function(index, noteIndex, citation) {
+  await original.apply(this, arguments)
+  try {
+    const ids = citation.citationItems.map(item => item.id)
+    if (ids.length) {
+      Zotero.Items.getAsync(ids).then(items => {
+        let feedback: Feedback
+        for (const item of items) {
+          if (feedback = Zotero.PubPeer.feedback[getDOI(item)]) {
+            flash('PubPeer feedback', `${item.getField('title')} has PubPeer feedback`)
+          }
+        }
+      })
+    }
+  } catch (err) {
+    debug('Zotero.Integration.Session.prototype.addCitation:', err.message)
+  }
 })
 
 const ready = Zotero.Promise.defer()
@@ -280,7 +319,7 @@ export class PubPeer { // tslint:disable-line:variable-name
 
     const dois = []
     for (const item of (await Zotero.Items.getAsync(ids))) {
-      const doi = getDOI(getField(item, 'DOI'), getField(item, 'extra'))
+      const doi = getDOI(item)
       if (doi && !dois.includes(doi)) dois.push(doi)
     }
     if (dois.length) await this.get(dois)
