@@ -35,6 +35,7 @@ interface Feedback {
   total_comments: number
   users: string[]
   last_commented_at: Date
+  shown: Record<string, boolean>
 }
 
 function htmlencode(text) {
@@ -187,7 +188,10 @@ $patch$(Zotero.Integration.Session.prototype, 'addCitation', original => async f
         let feedback: Feedback
         for (const item of items) {
           if (feedback = Zotero.PubPeer.feedback[getDOI(item)]) {
-            flash('ALERT: PubPeer feedback', `This article "${item.getField('title')}" has comments on PubPeer: ${feedback.url}`)
+            if (!feedback.shown[this.sessionID]) {
+              flash('ALERT: PubPeer feedback', `This article "${item.getField('title')}" has comments on PubPeer: ${feedback.url}`)
+              feedback.shown[this.sessionID] = true
+            }
           }
         }
       })
@@ -275,6 +279,7 @@ export class PubPeer { // tslint:disable-line:variable-name
             ...feedback,
             last_commented_at: new Date(feedback.last_commented_at.date + 'Z'),
             users: feedback.users.split(/\s*,\s*/).filter(u => u),
+            shown: {},
           }
           for (const user of this.feedback[feedback.id].users) {
             this.users[user] = this.users[user] || 'neutral'
