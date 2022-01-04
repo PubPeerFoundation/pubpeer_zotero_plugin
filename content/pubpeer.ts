@@ -13,7 +13,7 @@ import { ZoteroPane as ZoteroPaneHelper } from './zoteroPane'
 const seconds = 1000
 
 // eslint-disable-next-line no-magic-numbers
-export function flash(title: string, body?: string, timeout = 8): void {
+export function flash(title: string, body?: string, timeout = 0): void {
   try {
     debug('flash:', JSON.stringify({title, body}))
     const pw = new Zotero.ProgressWindow()
@@ -22,7 +22,7 @@ export function flash(title: string, body?: string, timeout = 8): void {
     if (Array.isArray(body)) body = body.join('\n')
     pw.addDescription(body)
     pw.show()
-    pw.startCloseTimer(timeout * seconds)
+    if (timeout) pw.startCloseTimer(timeout * seconds)
   } catch (err) {
     debug('flash failed:', JSON.stringify({title, body}), err.message)
   }
@@ -187,7 +187,7 @@ $patch$(Zotero.Integration.Session.prototype, 'addCitation', original => async f
         let feedback: Feedback
         for (const item of items) {
           if (feedback = Zotero.PubPeer.feedback[getDOI(item)]) {
-            flash('PubPeer feedback', `${item.getField('title')} has PubPeer feedback`)
+            flash('ALERT: PubPeer feedback', `This article "${item.getField('title')}" has comments on PubPeer: ${feedback.url}`)
           }
         }
       })
