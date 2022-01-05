@@ -183,8 +183,9 @@ $patch$(Zotero.Integration.Session.prototype, 'addCitation', original => async f
   await original.apply(this, arguments)
   try {
     const ids = citation.citationItems.map(item => item.id)
-    const style = Zotero.Styles.get('apa')
-    const cslEngine = style.getCiteProc('en')
+
+    const style = Zotero.Styles.get('http://www.zotero.org/styles/apa')
+    const cslEngine = style.getCiteProc('en-US')
 
     if (ids.length) {
       Zotero.Items.getAsync(ids).then(items => {
@@ -192,7 +193,7 @@ $patch$(Zotero.Integration.Session.prototype, 'addCitation', original => async f
         for (const item of items) {
           if (feedback = Zotero.PubPeer.feedback[getDOI(item)]) {
             if (!feedback.shown[this.sessionID]) {
-              const text = Zotero.Cite.makeFormattedBibliographyOrCitationList(cslEngine, items, 'text')
+              const text = Zotero.Cite.makeFormattedBibliographyOrCitationList(cslEngine, [item], 'text')
               flash('ALERT: PubPeer feedback', `This article "${item.getField('title')}" has comments on PubPeer: ${feedback.url}\n\n${text}`)
               feedback.shown[this.sessionID] = true
             }

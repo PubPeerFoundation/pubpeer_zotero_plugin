@@ -7,6 +7,7 @@ import configparser
 import argparse
 import shlex
 import xml.etree.ElementTree as ET
+import subprocess
 
 config = configparser.ConfigParser()
 if os.path.isfile('start.ini'):
@@ -51,10 +52,13 @@ for prefs in ['user', 'prefs']:
   with open(prefs, 'w') as f:
     f.write(''.join(user_prefs))
 
-os.system('npm run build')
+def system(cmd):
+  subprocess.run(cmd, shell=True, check=True)
 
-#os.system(f'rm -rf {profile}extensions.json')
-os.system(f"rm -rf {shlex.quote(plugin + '*')}")
+system('npm run build')
+
+#system(f'rm -rf {profile}extensions.json')
+system(f"rm -rf {shlex.quote(plugin + '*')}")
 
 with open(os.path.expanduser(plugin), 'w') as f:
   path = os.path.join(os.getcwd(), 'build')
@@ -68,4 +72,4 @@ if args.log: cmd += ' > ' + shlex.quote(os.path.expanduser(args.log))
 cmd += ' &'
 
 print(cmd)
-os.system(cmd)
+system(cmd)

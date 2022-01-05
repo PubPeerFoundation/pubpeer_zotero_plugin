@@ -84,9 +84,9 @@ export class ItemPane {
 
       const html = this.dom.parser.parseFromString(summary, 'text/xml')
       for (const a of html.getElementsByTagNameNS('http://www.w3.org/1999/xhtml', 'a')) {
-        if (!a.getAttribute('href')) continue
+        if (!a.getAttribute('url')) continue
 
-        a.setAttribute('onclick', 'Zotero.launchURL(this.getAttribute("href")); return false;')
+        a.setAttribute('onclick', 'Zotero.launchURL(this.getAttribute("url")); return false;')
         a.setAttribute('style', 'color: blue')
       }
       summary = this.dom.serializer.serializeToString(html)
