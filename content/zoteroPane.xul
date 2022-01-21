@@ -19,7 +19,6 @@
   </treecols>
 
   <!-- Include the main extension logic -->
-  <script src="chrome://zotero/content/include.js"/>
   <script src="chrome://zotero-pubpeer/content/pubpeer.js"/>
   <script>
     var globals = Function('return this')();
