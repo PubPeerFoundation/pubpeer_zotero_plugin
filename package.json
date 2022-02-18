@@ -1,6 +1,6 @@
 {
   "name": "zotero-pubpeer",
-  "version": "0.0.11",
+  "version": "0.0.13",
   "description": "Plugin to show if references in Zotero have PubPeer comments",
   "scripts": {
     "prelint": "tsc --noEmit",
@@ -9,7 +9,8 @@
     "build": "node esbuild.js",
     "postbuild": "zotero-plugin-zipup build zotero-pubpeer",
     "postversion": "git push --follow-tags",
-    "release": "zotero-plugin-release"
+    "release": "zotero-plugin-release",
+    "start": "zotero-start"
   },
   "repository": {
     "type": "git",
@@ -24,7 +25,7 @@
   },
   "homepage": "https://github.com/PubPeerFoundation/pubpeer_zotero_plugin",
   "dependencies": {
-    "esbuild": "^0.14.6"
+    "esbuild": "^0.14.22"
   },
   "xpi": {
     "name": "Pubpeer Plugin for Zotero",
@@ -33,13 +34,13 @@
     "iconURL": "chrome://zotero-better-bibtex/skin/pubpeer.svg"
   },
   "devDependencies": {
-    "@types/node": "^17.0.2",
+    "@types/node": "^17.0.18",
     "bluebird": "^3.7.2",
     "rimraf": "^3.0.2",
     "ts-loader": "^9.2.6",
-    "ts-node": "^10.4.0",
+    "ts-node": "^10.5.0",
     "tslint": "^5.20.1",
-    "typescript": "^4.5.4",
-    "zotero-plugin": "1.0.62"
+    "typescript": "^4.5.5",
+    "zotero-plugin": "1.2.1"
   }
 }

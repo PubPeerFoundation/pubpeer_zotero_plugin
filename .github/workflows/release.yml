@@ -1,7 +1,7 @@
 name: release
 
 on:
-  push:
+  push: null
 
 jobs:
   release:

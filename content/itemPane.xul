@@ -20,7 +20,6 @@
   </tabpanels>
 
   <!-- Include the main extension logic -->
-  <script src="chrome://zotero/content/include.js"/>
   <script>
     var globals = Function('return this')();
     window.addEventListener('load', event => {
