@@ -1,4 +1,7 @@
 const esbuild = require('esbuild')
+const rmrf = require('rimraf')
+
+rmrf.sync('gen')
 
 require('zotero-plugin/copy-assets')
 require('zotero-plugin/rdf')
