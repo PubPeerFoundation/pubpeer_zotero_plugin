@@ -1,4 +1,3 @@
-/* eslint-disable  @typescript-eslint/no-unsafe-return */
 declare const Zotero: IZotero
 
 function to_s(obj: any): string {
@@ -8,15 +7,13 @@ function to_s(obj: any): string {
     case '[object Object]':
       return JSON.stringify(obj)
     case '[object Set]':
-      return JSON.stringify(Array.from(obj)) // eslint-disable-line @typescript-eslint/no-unsafe-argument
+      return JSON.stringify(Array.from(obj))
     default:
       return s
   }
 }
 
-// eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
 export function debug(...msg): void {
   const str = `Cite Columns: ${msg.map(to_s).join(' ')}`
-  // console.error(str) // tslint:disable-line:no-console
   Zotero.debug(str)
 }

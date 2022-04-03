@@ -25,7 +25,8 @@ function toggleUser() {
   // update display panes by issuing a fake item-update notification
   if (Zotero.PubPeer.ItemPane.item) {
     Zotero.Notifier.trigger('modify', 'item', [Zotero.PubPeer.ItemPane.item.id])
-  } else {
+  }
+  else {
     debug('toggleUser but no item set?')
   }
 }
@@ -59,12 +60,12 @@ export class ItemPane {
     await this.refresh()
   }
 
-  public async load(globals: Record<string, any>) {
+  public load(globals: Record<string, any>) {
     loaded.document = globals.document
     this.observer = Zotero.Notifier.registerObserver(this, ['item'], 'PubPeer')
   }
 
-  public async unload() {
+  public unload() {
     Zotero.Notifier.unregisterObserver(this.observer)
   }
 
@@ -128,8 +129,11 @@ $patch$(ZoteroItemPane, 'viewItem', original => async function(item, mode, index
     const tabPanels = loaded.document.getElementById('zotero-editpane-tabs')
     pubPeerIndex = Array.from(tabPanels.children).findIndex(child => child.id === 'zotero-editpane-pubpeer-tab')
 
-    Zotero.PubPeer.ItemPane.refresh()
-  } catch (err) {
+    Zotero.PubPeer.ItemPane.refresh().catch(err => {
+      Zotero.logError(err)
+    })
+  }
+  catch (err) {
     Zotero.logError(`PubPeer.ZoteroItemPane.viewItem: ${err}`)
     pubPeerIndex = -1
   }
