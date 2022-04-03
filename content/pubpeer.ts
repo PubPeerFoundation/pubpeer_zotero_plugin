@@ -84,20 +84,21 @@ if (typeof Zotero.ItemTreeView === 'undefined') {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-return
     if (col.dataKey !== 'pubpeer') return original.apply(this, arguments)
 
+    const cell = document.createElementNS('http://www.w3.org/1999/xhtml', 'span')
+
     const item = this.getRow(index).ref
-    if (!item.isRegularItem()) return ''
+    if (!item.isRegularItem()) return cell
 
     if (Zotero.PubPeer.ready.isPending()) { // tslint:disable-line:no-use-before-declare
-      const loading = document.createElementNS('http://www.w3.org/1999/xhtml', 'img')
-      loading.className = 'pubpeer-state-loading'
-      loading.setAttribute('src', 'chrome://zotero-pubpeer/skin/loading.gif')
-      return loading
+      cell.className = 'pubpeer-state-loading'
+      return cell
     }
 
     const feedback = Zotero.PubPeer.feedback[getDOI(item)]
+    if (!feedback) return cell
+
     const state = feedback.users.map(user => Zotero.PubPeer.users[user])
 
-    const cell = document.createElementNS('http://www.w3.org/1999/xhtml', 'span')
     cell.innerText = `${feedback.total_comments}`
     if (state.includes('priority')) {
       cell.className = 'pubpeer-state-highlighted'
