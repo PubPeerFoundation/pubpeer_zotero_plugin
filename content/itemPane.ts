@@ -60,12 +60,14 @@ export class ItemPane {
     await this.refresh()
   }
 
-  public load(globals: Record<string, any>) {
+  // eslint-disable-next-line @typescript-eslint/require-await
+  public async load(globals: Record<string, any>) { // async because of call in itemPane.xul
     loaded.document = globals.document
     this.observer = Zotero.Notifier.registerObserver(this, ['item'], 'PubPeer')
   }
 
-  public unload() {
+  // eslint-disable-next-line @typescript-eslint/require-await
+  public async unload() { // async because of call in itemPane.xul
     Zotero.Notifier.unregisterObserver(this.observer)
   }
 

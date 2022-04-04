@@ -70,6 +70,7 @@ function getDOI(item): string {
   return dois[0] || ''
 }
 
+debug('table mode', typeof Zotero.ItemTreeView === 'undefined' ? 'new' : 'old')
 if (typeof Zotero.ItemTreeView === 'undefined') {
   const itemTree = require('zotero/itemTree')
 
@@ -354,7 +355,7 @@ export class PubPeer {
   }
 }
 
-Zotero.PubPeer = new PubPeer
+Zotero.PubPeer = Zotero.PubPeer || new PubPeer
 
 // used in zoteroPane.ts
 AddonManager.addAddonListener({
