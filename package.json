@@ -1,6 +1,6 @@
 {
   "name": "zotero-pubpeer",
-  "version": "0.0.13",
+  "version": "0.0.14",
   "description": "Plugin to show if references in Zotero have PubPeer comments",
   "scripts": {
     "prelint": "tsc --noEmit",
@@ -40,7 +40,7 @@
     "ts-loader": "^9.2.8",
     "ts-node": "^10.7.0",
     "typescript": "^4.6.3",
-        "@typescript-eslint/eslint-plugin": "^5.17.0",
+    "@typescript-eslint/eslint-plugin": "^5.17.0",
     "@typescript-eslint/parser": "^5.17.0",
     "esbuild": "^0.14.31",
     "eslint": "^8.12.0",
