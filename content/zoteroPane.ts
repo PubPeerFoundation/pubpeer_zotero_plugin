@@ -16,7 +16,8 @@ export class ZoteroPane {
     await Zotero.PubPeer.start()
   }
 
-  public unload(): void {
+  // eslint-disable-next-line @typescript-eslint/require-await
+  public async unload(): Promise<void> { // async because of generic setup in the xul script
     loaded.document.getElementById('zotero-itemmenu').removeEventListener('popupshowing', this, false)
   }
 

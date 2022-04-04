@@ -76,8 +76,8 @@ if (typeof Zotero.ItemTreeView === 'undefined') {
 
   $patch$(itemTree.prototype, 'getColumns', original => function Zotero_ItemTree_prototype_getColumns() {
     const columns = original.apply(this, arguments)
-    const insertAfter: number = columns.findIndex(column => column.dataKey === 'title')
-    columns.splice(insertAfter + 1, 0, {
+    // const insertAfter: number = columns.findIndex(column => column.dataKey === 'title')
+    columns.push(/* splice(insertAfter + 1, 0, */{
       dataKey: 'pubpeer',
       label: 'PubPeer',
       flex: '1',
@@ -90,26 +90,32 @@ if (typeof Zotero.ItemTreeView === 'undefined') {
   $patch$(itemTree.prototype, '_renderCell', original => function Zotero_ItemTree_prototype_renderCell(index, data, col) {
     if (col.dataKey !== 'pubpeer') return original.apply(this, arguments)
 
+    const content = document.createElementNS('http://www.w3.org/1999/xhtml', 'span')
+    content.className = 'cell-text'
+
     const cell = document.createElementNS('http://www.w3.org/1999/xhtml', 'span')
-    const item = this.getRow(index).ref
+    cell.className = `cell ${col.className}`
+    cell.append(content)
+
     let feedback
 
+    const item = this.getRow(index).ref
     if (item.isRegularItem()) {
       if (Zotero.PubPeer.ready.isPending()) {
-        cell.className = 'pubpeer-state-loading'
+        content.className = 'pubpeer-state-loading'
       }
       else if (feedback = Zotero.PubPeer.feedback[getDOI(item)]) {
-        cell.innerText = `${feedback.total_comments}`
+        content.innerText = `${feedback.total_comments}`
 
         const state = feedback.users.map(user => Zotero.PubPeer.users[user])
         if (state.includes('priority')) {
-          cell.className = 'pubpeer-state-highlighted'
+          content.className = 'pubpeer-state-highlighted'
         }
         else if (state.includes('neutral')) {
-          cell.className = 'pubpeer-state-neutral'
+          content.className = 'pubpeer-state-neutral'
         }
         else {
-          cell.className = 'pubpeer-state-muted'
+          content.className = 'pubpeer-state-muted'
         }
       }
     }
