@@ -249,13 +249,13 @@ export class PubPeer {
   }
 
   public load(): Record<string, 'neutral' | 'priority' | 'muted'> {
+    DebugLogSender.register('Debug Log', [])
     try {
       return JSON.parse(Zotero.Prefs.get('pubpeer.users') || '{}') as Record<string, 'neutral' | 'priority' | 'muted'>
     }
     catch (err) {
       return {}
     }
-    DebugLogSender.register('Debug Log', [])
   }
 
   public save() {
