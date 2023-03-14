@@ -11,6 +11,7 @@ import { patch as $patch$ } from './monkey-patch'
 import { debug } from './debug'
 import { ItemPane } from './itemPane'
 import { ZoteroPane as ZoteroPaneHelper } from './zoteroPane'
+import { DebugLog as DebugLogSender } from 'zotero-plugin/debug-log'
 
 const seconds = 1000
 
@@ -270,6 +271,8 @@ export class PubPeer {
     if (typeof Zotero.ItemTreeView === 'undefined') ZoteroPane.itemsView.refreshAndMaintainSelection()
 
     Zotero.Notifier.registerObserver(this, ['item'], 'PubPeer', 1)
+
+    DebugLogSender.register('PubPeer', [])
   }
 
   public getString(name: string, params = {}, html = false) {
