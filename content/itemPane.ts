@@ -1,6 +1,7 @@
 declare const Zotero: IZotero
-declare const Components: any
 declare const ZoteroItemPane: any
+
+import { DOMParser, XMLSerializer } from '@xmldom/xmldom'
 
 import { patch as $patch$ } from './monkey-patch'
 import { debug } from './debug'
@@ -39,8 +40,8 @@ export class ItemPane {
   private observer: number = null
 
   private dom = {
-    parser: Components.classes['@mozilla.org/xmlextras/domparser;1'].createInstance(Components.interfaces.nsIDOMParser),
-    serializer: Components.classes['@mozilla.org/xmlextras/xmlserializer;1'].createInstance(Components.interfaces.nsIDOMSerializer),
+    parser: new DOMParser,
+    serializer: new XMLSerializer,
   }
 
   public async notify(action, type, ids) {
@@ -86,7 +87,7 @@ export class ItemPane {
       summary = summary.replace(/(<\/?)/g, '$1html:')
 
       const html = this.dom.parser.parseFromString(summary, 'text/xml')
-      for (const a of html.getElementsByTagNameNS('http://www.w3.org/1999/xhtml', 'a')) {
+      for (const a of Array.from(html.getElementsByTagNameNS('http://www.w3.org/1999/xhtml', 'a'))) {
         if (!a.getAttribute('url')) continue
 
         a.setAttribute('onclick', 'Zotero.launchURL(this.getAttribute("url")); return false;')

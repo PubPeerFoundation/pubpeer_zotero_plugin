@@ -25,7 +25,8 @@
   },
   "homepage": "https://github.com/PubPeerFoundation/pubpeer_zotero_plugin",
   "dependencies": {
-    "zotero-plugin": "1.4.16"
+    "@xmldom/xmldom": "^0.8.6",
+    "zotero-plugin": "1.4.17"
   },
   "xpi": {
     "name": "Pubpeer Plugin for Zotero",
@@ -35,17 +36,17 @@
   },
   "devDependencies": {
     "@types/node": "^18.15.3",
-    "bluebird": "^3.7.2",
-    "rimraf": "^4.4.0",
-    "ts-loader": "^9.4.2",
-    "ts-node": "^10.9.1",
-    "typescript": "^4.9.5",
     "@typescript-eslint/eslint-plugin": "^5.55.0",
     "@typescript-eslint/parser": "^5.55.0",
+    "bluebird": "^3.7.2",
     "esbuild": "^0.17.11",
     "eslint": "^8.36.0",
     "eslint-plugin-import": "^2.27.5",
-    "eslint-plugin-jsdoc": "^40.0.2",
-    "eslint-plugin-prefer-arrow": "^1.2.3"
+    "eslint-plugin-jsdoc": "^40.0.3",
+    "eslint-plugin-prefer-arrow": "^1.2.3",
+    "rimraf": "^4.4.0",
+    "ts-loader": "^9.4.2",
+    "ts-node": "^10.9.1",
+    "typescript": "^4.9.5"
   }
 }
