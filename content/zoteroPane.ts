@@ -51,7 +51,7 @@ export class ZoteroPane {
 
 // Monkey patch because of https://groups.google.com/forum/#!topic/zotero-dev/zy2fSO1b0aQ
 $patch$(Zotero.getActiveZoteroPane(), 'serializePersist', original => function() {
-  original.apply(this, arguments)
+  original.apply(this, arguments) // eslint-disable-line prefer-rest-params
 
   let persisted: any
   if (Zotero.PubPeer.uninstalled && (persisted = Zotero.Prefs.get('pane.persist'))) {

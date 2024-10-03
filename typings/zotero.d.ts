@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { PubPeer } from '../content/pubpeer'
 
 declare global {

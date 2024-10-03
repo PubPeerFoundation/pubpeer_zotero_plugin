@@ -1,3 +1,4 @@
+/* eslinnt-disable */
 const esbuild = require('esbuild')
 const rmrf = require('rimraf')
 

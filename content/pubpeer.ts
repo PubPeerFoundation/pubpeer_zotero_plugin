@@ -1,5 +1,3 @@
-/* eslint-disable prefer-arrow/prefer-arrow-functions */
-
 Components.utils.import('resource://gre/modules/AddonManager.jsm')
 declare const AddonManager: any
 
@@ -49,19 +47,11 @@ function plaintext(text) {
   return `${text}`
 }
 
-function getField(item, field) {
-  try {
-    return item.getField(field) || ''
-  }
-  catch (err) {
-    return ''
-  }
-}
 function getDOI(item): string {
-  const doi: string = getField(item, 'DOI')
+  const doi: string = item.getField('DOI')
   if (doi) return doi
 
-  const extra = getField(item, 'extra')
+  const extra = item.getField('extra')
   if (!extra) return ''
 
   const dois: string[] = extra.split('\n')
@@ -253,6 +243,7 @@ export class PubPeer {
       return JSON.parse(Zotero.Prefs.get('pubpeer.users') || '{}') as Record<string, 'neutral' | 'priority' | 'muted'>
     }
     catch (err) {
+      Zotero.logError(err)
       return {}
     }
   }
