@@ -11,7 +11,7 @@ jobs:
     - name: install node
       uses: actions/setup-node@v3
       with:
-        node-version: 16.x
+        node-version: 22.x
     - name: Cache node dependencies
       uses: actions/cache@v2
       env:
