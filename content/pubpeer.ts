@@ -1,8 +1,7 @@
 Components.utils.import('resource://gre/modules/AddonManager.jsm')
 declare const AddonManager: any
 
-declare const Zotero: IZotero
-declare const ZoteroPane: any
+declare const Zotero: any
 declare const Components: any
 
 import { patch as $patch$ } from './monkey-patch'

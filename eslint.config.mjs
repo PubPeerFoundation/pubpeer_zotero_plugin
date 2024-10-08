@@ -4,7 +4,7 @@ import tseslint from "typescript-eslint";
 
 
 export default [
-  { files: ['content/*.ts'],
+  { files: ['bootstrap.ts', 'content/*.ts'],
   },
   { ignores: ['gen/', 'esbuild.js', 'build/'],
   },

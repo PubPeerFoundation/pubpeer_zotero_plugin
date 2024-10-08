@@ -11,25 +11,10 @@
     "preserveConstEnums": false,
     "sourceMap": false,
     "downlevelIteration": true,
-    "lib": [ "es2017", "dom" ],
-    "typeRoots": [
-      "./typings",
-      "./node_modules/@types"
-    ]
+    "lib": [ "es2019", "dom" ],
+    "typeRoots": [ "./node_modules/zotero-types" ],
   },
-  "include": [
-    "bin",
-    "loader",
-    "plugin",
-    "script",
-    "webpack",
-    "content/**/*",
-    "resource/**/*",
-    "zotero-webpack/**/*",
-    "setup/**/*",
-    "typings/*",
-    "*.ts"
-  ],
+  "include": [ "bootstrap.ts" ],
   "exclude": [
     "node_modules",
     "**/*.spec.ts"

@@ -3,7 +3,8 @@
   "version": "0.0.16",
   "description": "Plugin to show if references in Zotero have PubPeer comments",
   "scripts": {
-    "prelint": "tsc --noEmit",
+    "tsc": "tsc --noEmit",
+    "prelint": "npm run tsc",
     "lint": "eslint .",
     "prebuild": "npm run lint",
     "build": "node esbuild.js",
@@ -25,8 +26,8 @@
   },
   "homepage": "https://github.com/PubPeerFoundation/pubpeer_zotero_plugin",
   "dependencies": {
-    "@xmldom/xmldom": "^0.8.6",
-    "zotero-plugin": "1.4.17"
+    "@xmldom/xmldom": "^0.9.3",
+    "zotero-plugin": "2.0.32"
   },
   "xpi": {
     "name": "Pubpeer Plugin for Zotero",
@@ -35,16 +36,16 @@
     "iconURL": "chrome://zotero-better-bibtex/skin/pubpeer.svg"
   },
   "devDependencies": {
-    "@eslint/js": "^9.11.1",
-    "@types/node": "^18.15.3",
+    "@eslint/js": "^9.12.0",
+    "@types/node": "^22.7.5",
     "bluebird": "^3.7.2",
-    "esbuild": "^0.17.11",
-    "eslint": "^8.57.1",
+    "esbuild": "^0.24.0",
+    "eslint": "^9.12.0",
     "globals": "^15.10.0",
-    "rimraf": "^4.4.0",
-    "ts-loader": "^9.4.2",
-    "ts-node": "^10.9.1",
-    "typescript": "^4.9.5",
-    "typescript-eslint": "^8.8.0"
+    "rimraf": "^6.0.1",
+    "ts-loader": "^9.5.1",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.6.2",
+    "typescript-eslint": "^8.8.1"
   }
 }
