@@ -163,7 +163,7 @@ export class $PubPeer {
     Zotero.Prefs.set('pubpeer.users', JSON.stringify(this.users))
   }
 
-  public async start() {
+  public async startup() {
     if (this.started) return
     this.started = true
 
@@ -283,4 +283,4 @@ AddonManager.addAddonListener({
   },
 })
 
-export var PubPeer = new $PubPeer
+export var PubPeer = Zotero.PubPeer = new $PubPeer // eslint-disable-line no-var

@@ -1,5 +1,3 @@
-declare const Zotero: any
-
 import { debug } from './content/debug'
 
 export function install() {
@@ -10,18 +8,24 @@ export function uninstall() {
 }
 
 export async function startup({ id, version, rootURI }) {
-  debug('startup')
+  debug('startup', id, version)
+  Services.scriptloader.loadSubScript(rootURI + 'pubpeer.js', { Zotero })
+  await Zotero.PubPeer.startup()
 }
 
-export function shutdown() {
+export async function shutdown() {
   debug('shutdown')
+  await Zotero.PubPeer.shutdown()
+  Zotero.PubPeer = null
 }
 
 export function onMainWindowLoad({ window }) {
   debug('onMainWindowLoad')
+  Zotero.PubPeer.onMainWindowLoad(window)
 }
 
 export function onMainWindowUnload({ window }) {
   debug('onMainWindowUnload')
+  Zotero.PubPeer.onMainWindowUnload(window)
 }
 
