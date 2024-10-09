@@ -1,4 +1,3 @@
-declare const Zotero: IZotero
 declare const ZoteroItemPane: any
 
 import { DOMParser, XMLSerializer } from '@xmldom/xmldom'

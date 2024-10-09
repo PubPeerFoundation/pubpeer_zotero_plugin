@@ -1,33 +1,11 @@
 Components.utils.import('resource://gre/modules/AddonManager.jsm')
-declare const AddonManager: any
-
-declare const Zotero: any
-declare const Components: any
 
 import { patch as $patch$ } from './monkey-patch'
 import { debug } from './debug'
 import { ItemPane } from './itemPane'
 import { ZoteroPane as ZoteroPaneHelper } from './zoteroPane'
 import { DebugLog as DebugLogSender } from 'zotero-plugin/debug-log'
-
-const seconds = 1000
-
-// eslint-disable-next-line no-magic-numbers
-export function flash(title: string, body?: string, timeout = 0): void {
-  try {
-    debug('flash:', JSON.stringify({title, body}))
-    const pw = new Zotero.ProgressWindow()
-    pw.changeHeadline(`PubPeer: ${title}`)
-    if (!body) body = title
-    if (Array.isArray(body)) body = body.join('\n')
-    pw.addDescription(body)
-    pw.show()
-    if (timeout) pw.startCloseTimer(timeout * seconds)
-  }
-  catch (err) {
-    debug('flash failed:', JSON.stringify({title, body}), err.message)
-  }
-}
+import { flash } from './flash'
 
 interface Feedback {
   id: string // DOI
@@ -60,118 +38,54 @@ function getDOI(item): string {
   return dois[0] || ''
 }
 
-debug('table mode', typeof Zotero.ItemTreeView === 'undefined' ? 'new' : 'old')
-if (typeof Zotero.ItemTreeView === 'undefined') {
-  const itemTree = require('zotero/itemTree')
-
-  $patch$(itemTree.prototype, 'getColumns', original => function Zotero_ItemTree_prototype_getColumns() {
-    const columns = original.apply(this, arguments)
-    // const insertAfter: number = columns.findIndex(column => column.dataKey === 'title')
-    columns.push(/* splice(insertAfter + 1, 0, */{
-      dataKey: 'pubpeer',
-      label: 'PubPeer',
-      flex: '1',
-      zoteroPersist: new Set(['width', 'ordinal', 'hidden', 'sortActive', 'sortDirection']),
-    })
-
-    return columns
+const itemTree = require('zotero/itemTree')
+$patch$(itemTree.prototype, 'getColumns', original => function Zotero_ItemTree_prototype_getColumns() {
+  const columns = original.apply(this, arguments)
+  columns.push(/* splice(insertAfter + 1, 0, */{
+    dataKey: 'pubpeer',
+    label: 'PubPeer',
+    flex: '1',
+    zoteroPersist: new Set(['width', 'ordinal', 'hidden', 'sortActive', 'sortDirection']),
   })
 
-  $patch$(itemTree.prototype, '_renderCell', original => function Zotero_ItemTree_prototype_renderCell(index, data, col) {
-    if (col.dataKey !== 'pubpeer') return original.apply(this, arguments)
+  return columns
+})
 
-    const content = document.createElementNS('http://www.w3.org/1999/xhtml', 'span')
-    content.className = 'cell-text'
+$patch$(itemTree.prototype, '_renderCell', original => function Zotero_ItemTree_prototype_renderCell(index, data, col) {
+  if (col.dataKey !== 'pubpeer') return original.apply(this, arguments)
 
-    const cell = document.createElementNS('http://www.w3.org/1999/xhtml', 'span')
-    cell.className = `cell ${col.className}`
-    cell.append(content)
+  const content = document.createElementNS('http://www.w3.org/1999/xhtml', 'span')
+  content.className = 'cell-text'
 
-    let feedback
+  const cell = document.createElementNS('http://www.w3.org/1999/xhtml', 'span')
+  cell.className = `cell ${col.className}`
+  cell.append(content)
 
-    const item = this.getRow(index).ref
-    if (item.isRegularItem()) {
-      if (Zotero.PubPeer.ready.isPending()) {
-        content.className = 'pubpeer-state-loading'
-      }
-      else if (feedback = Zotero.PubPeer.feedback[getDOI(item)]) {
-        content.innerText = `${feedback.total_comments}`
+  let feedback
 
-        const state = feedback.users.map(user => Zotero.PubPeer.users[user])
-        if (state.includes('priority')) {
-          content.className = 'pubpeer-state-highlighted'
-        }
-        else if (state.includes('neutral')) {
-          content.className = 'pubpeer-state-neutral'
-        }
-        else {
-          content.className = 'pubpeer-state-muted'
-        }
-      }
+  const item = this.getRow(index).ref
+  if (item.isRegularItem()) {
+    if (PubPeer.ready.isPending()) {
+      content.className = 'pubpeer-state-loading'
     }
+    else if (feedback = Zotero.PubPeer.feedback[getDOI(item)]) {
+      content.innerText = `${feedback.total_comments}`
 
-    return cell
-  })
-}
-else {
-  const itemTreeViewWaiting: Record<string, boolean> = {}
-
-  function getCellX(tree, row, col, field): string { // eslint-disable-line no-inner-declarations
-    if (col.id !== 'zotero-items-column-pubpeer') return ''
-
-    const item = tree.getRow(row).ref
-
-    if (item.isNote() || item.isAttachment()) return ''
-
-    if (Zotero.PubPeer.ready.isPending()) {
-      const id = `${field}.${item.id}`
-      if (!itemTreeViewWaiting[id]) {
-        Zotero.PubPeer.ready
-          .then(() => {
-            tree._treebox.invalidateCell(row, col) // eslint-disable-line no-underscore-dangle
-          })
-          .catch(err => {
-            Zotero.logError(err)
-          })
-        itemTreeViewWaiting[id] = true
+      const state = feedback.users.map(user => Zotero.PubPeer.users[user])
+      if (state.includes('priority')) {
+        content.className = 'pubpeer-state-highlighted'
       }
-
-      switch (field) {
-        case 'image':
-          return 'chrome://zotero-pubpeer/skin/loading.gif'
-        case 'properties':
-          return ' pubpeer-state-loading'
-        case 'text':
-          return ''
+      else if (state.includes('neutral')) {
+        content.className = 'pubpeer-state-neutral'
       }
-    }
-
-    const feedback = Zotero.PubPeer.feedback[getDOI(item)]
-    if (!feedback) return ''
-
-    let state
-    switch (field) {
-      case 'text':
-        return `${feedback.total_comments}` // last_commented_at.toISOString().replace(/T.*/, '')
-
-      case 'properties':
-        state = feedback.users.map(user => Zotero.PubPeer.users[user])
-        if (state.includes('priority')) return ' pubpeer-state-highlighted'
-        if (state.includes('neutral')) return ' pubpeer-state-neutral'
-        return ' pubpeer-state-muted'
+      else {
+        content.className = 'pubpeer-state-muted'
+      }
     }
   }
 
-  $patch$(Zotero.ItemTreeView.prototype, 'getCellProperties', original => function Zotero_ItemTreeView_prototype_getCellProperties(row, col, _prop) {
-    return (original.apply(this, arguments) as string + getCellX(this, row, col, 'properties')).trim()
-  })
-
-  $patch$(Zotero.ItemTreeView.prototype, 'getCellText', original => function Zotero_ItemTreeView_prototype_getCellText(row, col): string {
-    if (col.id !== 'zotero-items-column-pubpeer') return original.apply(this, arguments) as string
-
-    return getCellX(this, row, col, 'text')
-  })
-}
+  return cell
+})
 
 $patch$(Zotero.Item.prototype, 'getField', original => function Zotero_Item_prototype_getField(field, _unformatted, _includeBaseMapped): string {
   try {
@@ -219,13 +133,11 @@ $patch$(Zotero.Integration.Session.prototype, 'addCitation', original => async f
 })
 
 const ready = Zotero.Promise.defer()
-
-export class PubPeer {
+export class $PubPeer {
   public ItemPane = new ItemPane
   public ZoteroPane = new ZoteroPaneHelper
 
   public ready: Promise<boolean> & { isPending: () => boolean } = ready.promise
-  // public ready: any = ready.promise
   public feedback: { [DOI: string]: Feedback } = {}
   public users: Record<string, 'neutral' | 'priority' | 'muted'> = this.load()
   public uninstalled = false
@@ -354,8 +266,6 @@ export class PubPeer {
   }
 }
 
-Zotero.PubPeer = Zotero.PubPeer || new PubPeer
-
 // used in zoteroPane.ts
 AddonManager.addAddonListener({
   onUninstalling(addon, _needsRestart) {
@@ -372,3 +282,5 @@ AddonManager.addAddonListener({
     delete Zotero.PubPeer.uninstalled
   },
 })
+
+export var PubPeer = new $PubPeer

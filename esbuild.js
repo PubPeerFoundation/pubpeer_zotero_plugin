@@ -10,9 +10,8 @@ require('zotero-plugin/copy-assets')
 require('zotero-plugin/rdf')
 require('zotero-plugin/version')
 
-async function bundle() {
+async function bundle(entry) {
   const outdir = 'build'
-  const entry = 'bootstrap.ts'
   const config = {
     entryPoints: [ entry ],
     outdir,
@@ -25,9 +24,8 @@ async function bundle() {
     external: [ 'zotero/itemTree' ]
   }
 
-  const target = path.join(outdir, entry.replace(/[.]ts$/, '.js'))
+  const target = path.join(outdir, path.basename(entry).replace(/[.]ts$/, '.js'))
   const esm = await esbuild.build({ ...config, logLevel: 'silent', format: 'esm', metafile: true, write: false })
-  let globalName
   for (const output of Object.values(esm.metafile.outputs)) {
     if (output.entryPoint) {
       const sep = '$$'
@@ -43,7 +41,12 @@ async function bundle() {
   )
 }
 
-bundle().catch(err => {
+async function build() {
+  await bundle('bootstrap.ts')
+  await bundle('content/pubpeer.ts')
+}
+
+build().catch(err => {
   console.log(err)
   process.exit(1)
 })

@@ -1,5 +1,3 @@
-declare const Zotero: IZotero
-
 import { patch as $patch$ } from './monkey-patch'
 // import { debug } from './debug'
 

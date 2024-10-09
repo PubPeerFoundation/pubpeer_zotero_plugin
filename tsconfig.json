@@ -12,9 +12,10 @@
     "sourceMap": false,
     "downlevelIteration": true,
     "lib": [ "es2019", "dom" ],
-    "typeRoots": [ "./node_modules/zotero-types" ],
+    "types": [ "node" ],
+    "typeRoots": [ "./node_modules/@types" ]
   },
-  "include": [ "bootstrap.ts" ],
+  "include": [ "bootstrap.ts", "content/pubpeer.ts", "content/globals.d.ts" ],
   "exclude": [
     "node_modules",
     "**/*.spec.ts"

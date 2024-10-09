@@ -1,5 +1,3 @@
-declare const Zotero: any
-
 function replacer(key, value) {
   if (value === null) return value
   if (value instanceof Set) return [...value]
@@ -20,6 +18,6 @@ function to_s(obj: any): string {
   return JSON.stringify(obj, replacer)
 }
 
-export function log(...msg): void {
+export function debug(...msg): void {
   Zotero.debug(`PubPeer: ${msg.map(to_s).join(' ')}`)
 }
