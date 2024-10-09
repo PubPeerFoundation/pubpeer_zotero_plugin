@@ -1,6 +1,6 @@
 Components.utils.import('resource://gre/modules/AddonManager.jsm')
 
-import { patch as $patch$ } from './monkey-patch'
+import * as $patch$ from './monkey-patch'
 import { debug } from './debug'
 import { ItemPane } from './itemPane'
 import { ZoteroPane as ZoteroPaneHelper } from './zoteroPane'
@@ -39,7 +39,7 @@ function getDOI(item): string {
 }
 
 const itemTree = require('zotero/itemTree')
-$patch$(itemTree.prototype, 'getColumns', original => function Zotero_ItemTree_prototype_getColumns() {
+$patch$.schedule(itemTree.prototype, 'getColumns', original => function Zotero_ItemTree_prototype_getColumns() {
   const columns = original.apply(this, arguments)
   columns.push(/* splice(insertAfter + 1, 0, */{
     dataKey: 'pubpeer',
@@ -51,7 +51,7 @@ $patch$(itemTree.prototype, 'getColumns', original => function Zotero_ItemTree_p
   return columns
 })
 
-$patch$(itemTree.prototype, '_renderCell', original => function Zotero_ItemTree_prototype_renderCell(index, data, col) {
+$patch$.schedule(itemTree.prototype, '_renderCell', original => function Zotero_ItemTree_prototype_renderCell(index, data, col) {
   if (col.dataKey !== 'pubpeer') return original.apply(this, arguments)
 
   const content = document.createElementNS('http://www.w3.org/1999/xhtml', 'span')
@@ -87,7 +87,7 @@ $patch$(itemTree.prototype, '_renderCell', original => function Zotero_ItemTree_
   return cell
 })
 
-$patch$(Zotero.Item.prototype, 'getField', original => function Zotero_Item_prototype_getField(field, _unformatted, _includeBaseMapped): string {
+$patch$.schedule(Zotero.Item.prototype, 'getField', original => function Zotero_Item_prototype_getField(field, _unformatted, _includeBaseMapped): string {
   try {
     if (field === 'pubpeer') {
       if (Zotero.PubPeer.ready.isPending()) return ''
@@ -104,7 +104,7 @@ $patch$(Zotero.Item.prototype, 'getField', original => function Zotero_Item_prot
   return original.apply(this, arguments) as string
 })
 
-$patch$(Zotero.Integration.Session.prototype, 'addCitation', original => async function(index, noteIndex, citation) {
+$patch$.schedule(Zotero.Integration.Session.prototype, 'addCitation', original => async function(index, noteIndex, citation) {
   await original.apply(this, arguments)
   try {
     const ids = citation.citationItems.map((item: { id: number }) => item.id)
@@ -163,6 +163,7 @@ export class $PubPeer {
 
   public async startup() {
     await Zotero.initializationPromise
+    $patch$.execute()
     await this.refresh()
     ready.resolve(true)
     Zotero.getActiveZoteroPane().itemsView.refreshAndMaintainSelection()
@@ -172,6 +173,7 @@ export class $PubPeer {
     DebugLogSender.register('PubPeer', [])
   }
   public async shutdown() {
+    $patch$.unpatch()
   }
 
   public onMainWindowLoad(win: Window) {

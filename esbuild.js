@@ -26,10 +26,11 @@ async function bundle(entry) {
 
   const target = path.join(outdir, path.basename(entry).replace(/[.]ts$/, '.js'))
   const esm = await esbuild.build({ ...config, logLevel: 'silent', format: 'esm', metafile: true, write: false })
+  const postfix = `$$${Date.now()}`
   for (const output of Object.values(esm.metafile.outputs)) {
     if (output.entryPoint) {
-      const sep = '$$'
-      config.globalName = escape(`{ ${output.exports.sort().join(', ')} }`).replace(/%/g, '$')
+      config.globalName = `${escape(`{ ${output.exports.join(', ')} }`).replace(/%/g, '$')}${postfix}`
+      console.log(config.globalName)
     }
   }
 
@@ -37,7 +38,7 @@ async function bundle(entry) {
 
   await fs.promises.writeFile(
     target,
-    (await fs.promises.readFile(target, 'utf-8')).replace(config.globalName, unescape(config.globalName.replace(/[$]/g, '%')))
+    (await fs.promises.readFile(target, 'utf-8')).replace(config.globalName, unescape(config.globalName.replace(postfix, '').replace(/[$]/g, '%')))
   )
 }
 

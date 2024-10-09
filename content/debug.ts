@@ -21,3 +21,16 @@ function to_s(obj: any): string {
 export function debug(...msg): void {
   Zotero.debug(`PubPeer: ${msg.map(to_s).join(' ')}`)
 }
+
+function circularReplacer() {
+    const seen = new Set();
+    return function(key, value) {
+        if (typeof value === 'object' && value !== null) {
+            if (seen.has(value)) {
+                return '[Circular]';
+            }
+            seen.add(value);
+        }
+        return value;
+    };
+}
