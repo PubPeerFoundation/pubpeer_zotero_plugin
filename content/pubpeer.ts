@@ -171,6 +171,15 @@ export class $PubPeer {
 
     DebugLogSender.register('PubPeer', [])
   }
+  public async shutdown() {
+  }
+
+  public onMainWindowLoad(win: Window) {
+    debug('onMainWindowLoad:', win.location.href)
+  }
+  public onMainWindowUnload(win: Window) {
+    debug('onMainWindowUnload:', win.location.href)
+  }
 
   public getString(name: string, params = {}, html = false) {
     if (!this.bundle || typeof this.bundle.GetStringFromName !== 'function') {

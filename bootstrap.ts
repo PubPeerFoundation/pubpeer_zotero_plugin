@@ -11,7 +11,7 @@ let chromeHandle
 export async function startup({ id, version, rootURI }) {
   debug('startup', id, version)
 
-  const aomStartup = Cc['@mozilla.org/addons/addon-manager-startup;1'].getService(Ci.amIAddonManagerStartup)
+  const aomStartup = Components.classes['@mozilla.org/addons/addon-manager-startup;1'].getService(Components.interfaces.amIAddonManagerStartup)
   const manifestURI = Services.io.newURI(`${ rootURI }manifest.json`)
   chromeHandle = aomStartup.registerChrome(manifestURI, [
     [ 'content', 'zotero-pubpeer', 'content/'                  ], 
