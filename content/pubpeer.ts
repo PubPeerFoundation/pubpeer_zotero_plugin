@@ -143,8 +143,6 @@ export class $PubPeer {
   public uninstalled = false
 
   private bundle: any
-  private started = false
-
   constructor() {
     this.bundle = Components.classes['@mozilla.org/intl/stringbundle;1'].getService(Components.interfaces.nsIStringBundleService).createBundle('chrome://zotero-pubpeer/locale/zotero-pubpeer.properties')
   }
@@ -164,13 +162,10 @@ export class $PubPeer {
   }
 
   public async startup() {
-    if (this.started) return
-    this.started = true
-
-    await Zotero.Schema.schemaUpdatePromise
+    await Zotero.initializationPromise
     await this.refresh()
     ready.resolve(true)
-    if (typeof Zotero.ItemTreeView === 'undefined') ZoteroPane.itemsView.refreshAndMaintainSelection()
+    Zotero.getActiveZoteroPane().itemsView.refreshAndMaintainSelection()
 
     Zotero.Notifier.registerObserver(this, ['item'], 'PubPeer', 1)
 

@@ -4,7 +4,5 @@ declare var PubPeer: $PubPeer // eslint-disable-line no-var
 declare const Zotero: { PubPeer: $PubPeer } & Omit<Record<string, any>, 'PubPeer'>
 declare const AddonManager: any
 declare const Components: any
-declare const ZoteroPane: any
 declare const Services: any
-
-
+declare const Localization: any
