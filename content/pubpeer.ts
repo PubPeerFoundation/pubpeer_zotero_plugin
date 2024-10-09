@@ -140,7 +140,6 @@ export class $PubPeer {
   public ready: Promise<boolean> & { isPending: () => boolean } = ready.promise
   public feedback: { [DOI: string]: Feedback } = {}
   public users: Record<string, 'neutral' | 'priority' | 'muted'> = this.load()
-  public uninstalled = false
 
   private bundle: any
   constructor() {
@@ -271,22 +270,5 @@ export class $PubPeer {
     if (dois.length) await this.get(dois)
   }
 }
-
-// used in zoteroPane.ts
-AddonManager.addAddonListener({
-  onUninstalling(addon, _needsRestart) {
-    if (addon.id === 'pubpeer@pubpeer.com') Zotero.PubPeer.uninstalled = true
-  },
-
-  onDisabling(addon, needsRestart) { this.onUninstalling(addon, needsRestart) },
-
-  onOperationCancelled(addon, _needsRestart) {
-    if (addon.id !== 'pubpeer@pubpeer.com') return null
-
-    if (addon.pendingOperations & (AddonManager.PENDING_UNINSTALL | AddonManager.PENDING_DISABLE)) return null // eslint-disable-line no-bitwise
-
-    delete Zotero.PubPeer.uninstalled
-  },
-})
 
 export var PubPeer = Zotero.PubPeer = new $PubPeer // eslint-disable-line no-var
