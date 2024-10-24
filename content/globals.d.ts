@@ -6,3 +6,4 @@ declare const AddonManager: any
 declare const Components: any
 declare const Services: any
 declare const Localization: any
+declare const rootURI: string

@@ -2,10 +2,9 @@ Components.utils.import('resource://gre/modules/AddonManager.jsm')
 
 import * as $patch$ from './monkey-patch'
 import { debug } from './debug'
-import { ItemPane } from './itemPane'
-import { ZoteroPane as ZoteroPaneHelper } from './zoteroPane'
 import { DebugLog as DebugLogSender } from 'zotero-plugin/debug-log'
 import { flash } from './flash'
+import { localize } from './l10n'
 
 interface Feedback {
   id: string // DOI
@@ -17,12 +16,16 @@ interface Feedback {
   shown: Record<string, boolean>
 }
 
+const xul = 'http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul'
+
+/*
 function htmlencode(text) {
   return `${text}`.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 }
 function plaintext(text) {
   return `${text}`
 }
+*/
 
 function getDOI(item): string {
   const doi: string = item.getField('DOI')
@@ -132,19 +135,39 @@ $patch$.schedule(Zotero.Integration.Session.prototype, 'addCitation', original =
   }
 })
 
+const states = {
+  name: [ 'neutral', 'priority', 'muted' ],
+  label: { muted: '\u2612', neutral: '\u2610', priority: '\u2611' },
+}
+function toggleUser() {
+  const user = this.getAttribute('data-user')
+  const state = states.name[(states.name.indexOf(this.getAttribute('data-state')) + 1) % states.name.length]
+
+  Zotero.PubPeer.users[user] = (state as 'neutral') // bypass TS2322
+  this.parentElement.setAttribute('class', `pubpeer-user pubpeer-user-${state}`)
+  this.value = states.label[state]
+  this.setAttribute('data-state', state)
+  Zotero.PubPeer.save()
+
+  // update display panes by issuing a fake item-update notification
+  if (Zotero.PubPeer.item) {
+    Zotero.Notifier.trigger('modify', 'item', [Zotero.PubPeer.item.id])
+  }
+  else {
+    debug('toggleUser but no item set?')
+  }
+}
+
 const ready = Zotero.Promise.defer()
 export class $PubPeer {
-  public ItemPane = new ItemPane
-  public ZoteroPane = new ZoteroPaneHelper
-
   public ready: Promise<boolean> & { isPending: () => boolean } = ready.promise
   public feedback: { [DOI: string]: Feedback } = {}
   public users: Record<string, 'neutral' | 'priority' | 'muted'> = this.load()
-
-  private bundle: any
-  constructor() {
-    this.bundle = Components.classes['@mozilla.org/intl/stringbundle;1'].getService(Components.interfaces.nsIStringBundleService).createBundle('chrome://zotero-pubpeer/locale/zotero-pubpeer.properties')
-  }
+  private dom = new DOMParser
+  private serializer = new XMLSerializer
+  public item: any
+  
+  private itemObserver: number
 
   public load(): Record<string, 'neutral' | 'priority' | 'muted'> {
     try {
@@ -163,15 +186,86 @@ export class $PubPeer {
   public async startup() {
     await Zotero.initializationPromise
     $patch$.execute()
-    await this.refresh()
     ready.resolve(true)
+    await this.refresh()
+
     Zotero.getActiveZoteroPane().itemsView.refreshAndMaintainSelection()
 
-    Zotero.Notifier.registerObserver(this, ['item'], 'PubPeer', 1)
+    this.itemObserver = Zotero.Notifier.registerObserver(this, ['item'], 'PubPeer', 1)
 
     DebugLogSender.register('PubPeer', [])
+
+    Zotero.ItemPaneManager.registerSection({
+      paneID: 'pubpeer-section-peer-comments',
+      pluginID: 'pubpeer@pubpeer.com',
+      header: {
+        l10nID: 'pubpeer-itempane-header',
+        icon: `${ rootURI }content/skin/item-section/header.svg`,
+      },
+      sidenav: {
+        l10nID: 'pubpeer-itempane-sidenav',
+        icon: `${ rootURI }content/skin/item-section/sidenav.svg`,
+      },
+      bodyXHTML: '<html:div id="zotero-itempane-pubpeer-summary" xmlns:html="http://www.w3.org/1999/xhtml" type="content"/>',
+      onItemChange: ({ item }) => {
+        this.item = item
+      },
+      onRender: ({ body, setSectionSummary }) => {
+        while (body.firstChild) {
+          body.removeChild(body.lastChild);
+        }
+        setSectionSummary(localize('pubpeer_itemPane_noComment'))
+      },
+      onAsyncRender: async ({ body, item }) => {
+        this.item = item
+        const doi = item.getField('DOI')
+        const feedback = doi && (await PubPeer.get([doi]))[0]
+        if (feedback) {
+          let summary = localize('pubpeer_itemPane_summary', {
+            ...feedback,
+            users: feedback.users.join(', '),
+            last_commented_at: feedback.last_commented_at.toLocaleString()
+          })
+          summary = `<div xmlns:html="http://www.w3.org/1999/xhtml">${summary}</div>`
+          summary = summary.replace(/(<\/?)/g, '$1html:')
+
+          const html = this.dom.parseFromString(summary, 'text/xml').documentElement as Element
+          for (const a of Array.from(html.querySelectorAll('a'))) {
+            if (a.getAttribute('url')) {
+              a.setAttribute('onclick', 'Zotero.launchURL(this.getAttribute("url")); return false;')
+              a.setAttribute('style', 'color: blue')
+            }
+          }
+          body.appendChild(html)
+
+          for (const user of feedback.users) {
+            Zotero.PubPeer.users[user] = Zotero.PubPeer.users[user] || 'neutral'
+
+            const hbox: any = body.appendChild(body.ownerDocument.createElementNS(xul, 'hbox'))
+            hbox.setAttribute('align', 'center')
+            hbox.setAttribute('class', `pubpeer-user pubpeer-user-${Zotero.PubPeer.users[user]}`)
+
+            const cb: any = hbox.appendChild(body.ownerDocument.createElementNS(xul, 'label'))
+            const state = Zotero.PubPeer.users[user]
+            cb.setAttribute('class', 'pubpeer-checkbox')
+            cb.value = states.label[state]
+            cb.setAttribute('data-user', user)
+            cb.setAttribute('data-state', state)
+            cb.onclick = toggleUser
+
+            const label: any = hbox.appendChild(body.ownerDocument.createElementNS(xul, 'label'))
+            label.setAttribute('class', 'pubpeer-username')
+            label.setAttribute('value', user)
+            label.setAttribute('flex', '8')
+          }
+
+          // setSectionSummary(localize('pubpeer_itemPane_summary', { total_comments: feedback.total_comments, url, last_commented_at, }))
+        }
+      },
+    })
   }
   public async shutdown() {
+    Zotero.Notifier.unregisterObserver(this.itemObserver)
     $patch$.unpatch()
   }
 
@@ -180,25 +274,6 @@ export class $PubPeer {
   }
   public onMainWindowUnload(win: Window) {
     debug('onMainWindowUnload:', win.location.href)
-  }
-
-  public getString(name: string, params = {}, html = false) {
-    if (!this.bundle || typeof this.bundle.GetStringFromName !== 'function') {
-      Zotero.logError(`PubPeer.getString(${name}): getString called before strings were loaded`)
-      return name
-    }
-
-    let template = name
-
-    try {
-      template = this.bundle.GetStringFromName(name)
-    }
-    catch (err) {
-      Zotero.logError(`PubPeer.getString(${name}): ${err}`)
-    }
-
-    const encode: (t: string) => string = html ? htmlencode : plaintext
-    return template.replace(/{{(.*?)}}/g, (_match, param: string) => encode(params[param] || ''))
   }
 
   public async get(dois, options: { refresh?: boolean } = {}): Promise<Feedback[]> {
@@ -216,7 +291,7 @@ export class $PubPeer {
           if (feedback.last_commented_at.timezone !== 'UTC') debug(`PubPeer.get: ${feedback.id} has timezone ${feedback.last_commented_at.timezone}`)
           this.feedback[feedback.id] = {
             ...feedback,
-            last_commented_at: new Date(feedback.last_commented_at.date as string + 'Z'), // eslint-disable-line prefer-template
+            last_commented_at: new Date(feedback.last_commented_at.date as string + 'Z'),
             users: feedback.users.split(/\s*,\s*/).filter((u: string) => u),
             shown: {},
           }
@@ -256,7 +331,7 @@ export class $PubPeer {
 
     await this.get(dois, { refresh: true })
 
-    setTimeout(this.refresh.bind(this), 24 * 60 * 60 * 1000) // eslint-disable-line @typescript-eslint/no-magic-numbers
+    setTimeout(this.refresh.bind(this), 24 * 60 * 60 * 1000)
   }
 
   protected async notify(action: string, type: string, ids: number[], _extraData: any) {

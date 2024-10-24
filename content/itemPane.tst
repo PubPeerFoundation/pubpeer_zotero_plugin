@@ -5,8 +5,6 @@ import { DOMParser, XMLSerializer } from '@xmldom/xmldom'
 import { patch as $patch$ } from './monkey-patch'
 import { debug } from './debug'
 
-const loaded: { document: HTMLDocument } = { document: null }
-
 const states = {
   name: [ 'neutral', 'priority', 'muted' ],
   label: { muted: '\u2612', neutral: '\u2610', priority: '\u2611' },
@@ -33,7 +31,7 @@ function toggleUser() {
 
 const xul = 'http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul'
 
-export class ItemPane {
+export const ItemPaneSection = new class $ItemPaneSection {
   public item: any = null
 
   private observer: number = null

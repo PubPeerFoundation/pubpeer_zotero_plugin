@@ -18,7 +18,7 @@ export async function startup({ id, version, rootURI }) {
     [ 'locale' , 'zotero-pubpeer', 'en-US'   , 'locale/en-US/' ]
   ])
 
-  Services.scriptloader.loadSubScript(rootURI + 'pubpeer.js', { Zotero })
+  Services.scriptloader.loadSubScript(rootURI + 'pubpeer.js', { rootURI, Zotero })
   await Zotero.PubPeer.startup()
 }
 

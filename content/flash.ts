@@ -1,5 +1,4 @@
 import { debug } from './debug'
-// eslint-disable-next-line no-magic-numbers
 export function flash(title: string, body?: string, timeout = 0): void {
   try {
     debug('flash:', JSON.stringify({title, body}))
