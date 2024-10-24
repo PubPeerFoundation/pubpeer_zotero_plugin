@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 Components.utils.import('resource://gre/modules/AddonManager.jsm')
 
 import * as $patch$ from './monkey-patch'
@@ -164,11 +165,11 @@ export class $PubPeer {
       pluginID: 'pubpeer@pubpeer.com',
       header: {
         l10nID: 'pubpeer-itempane-header',
-        icon: `${ rootURI }content/skin/item-section/header.svg`,
+        icon: `${ rootURI }content/skin/item-section/header.png`,
       },
       sidenav: {
         l10nID: 'pubpeer-itempane-sidenav',
-        icon: `${ rootURI }content/skin/item-section/sidenav.svg`,
+        icon: `${ rootURI }content/skin/item-section/sidenav.png`,
       },
       bodyXHTML: '<html:div id="zotero-itempane-pubpeer-summary" xmlns:html="http://www.w3.org/1999/xhtml" type="content"/>',
       onItemChange: ({ item }) => {
@@ -282,14 +283,17 @@ export class $PubPeer {
     debug('onMainWindowLoad:', win.location.href)
     const doc: Document & { createXULElement: any } = win.document as any
 
+    if (doc.querySelector('menuitem.pubpeer')) return
+
     doc.getElementById('zotero-itemmenu').addEventListener('popupshowing', this, false)
-    win.MozXULElement.insertFTLIfNeeded('pubpeer.ftl')
+    win.MozXULElement.insertFTLIfNeeded('zotero-pubpeer.ftl')
 
     const menuitem = doc.createXULElement('menuitem')
     menuitem.className = 'pubpeer'
-    menuitem.setAttribute('data-l10n-id', 'pubpeer_fetchComments')
+    // menuitem.setAttribute('data-l10n-id', 'pubpeer_fetchComments')
+    menuitem.setAttribute('label', localize('pubpeer_fetchComments'))
     menuitem.addEventListener('command', () => { Zotero.PubPeer.run('getPubPeerLink') })
-    doc.getElementById('menu_viewPopup').appendChild(menuitem)
+    doc.getElementById('zotero-itemmenu').appendChild(menuitem)
   }
 
   public run(method: string, ...args): void {
@@ -300,6 +304,7 @@ export class $PubPeer {
     const selectedItems = Zotero.getActiveZoteroPane().getSelectedItems()
     if (selectedItems.length !== 1) return
     const doi = selectedItems[0].getField('DOI')
+    flash(`get pubpeer link for ${doi}`)
     if (!doi) return
 
     const feedback = (await Zotero.PubPeer.get([ doi ]))[0]

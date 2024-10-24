@@ -1,6 +1,6 @@
 import { debug } from './debug'
 
-const strings = new Localization(['better-bibtex.ftl'], true)
+const strings = new Localization(['zotero-pubpeer.ftl'], true)
 
 export function localize(id_with_branch: string, params: any = null): string {
   try {
