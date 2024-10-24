@@ -144,7 +144,7 @@ function toggleUser() {
   const state = states.name[(states.name.indexOf(this.getAttribute('data-state')) + 1) % states.name.length]
 
   Zotero.PubPeer.users[user] = (state as 'neutral') // bypass TS2322
-  this.parentElement.setAttribute('class', `pubpeer-user pubpeer-user-${state}`)
+  this.parentElement.setAttribute('class', `pupbeer pubpeer-user pubpeer-user-${state}`)
   this.value = states.label[state]
   this.setAttribute('data-state', state)
   Zotero.PubPeer.save()
@@ -263,17 +263,65 @@ export class $PubPeer {
         }
       },
     })
+
+		for (const win of Zotero.getMainWindows()) {
+			if (win.ZoteroPane) this.onMainWindowLoad(win)
+		}
   }
   public async shutdown() {
+		for (const win of Zotero.getMainWindows()) {
+			if (win.ZoteroPane) this.onMainWindowUnload(win)
+		}
     Zotero.Notifier.unregisterObserver(this.itemObserver)
     $patch$.unpatch()
   }
 
-  public onMainWindowLoad(win: Window) {
+  public onMainWindowLoad(win: Window & { MozXULElement: any }) {
     debug('onMainWindowLoad:', win.location.href)
+    const doc: Document & { createXULElement: any } = win.document as any
+
+    doc.getElementById('zotero-itemmenu').addEventListener('popupshowing', this, false)
+    win.MozXULElement.insertFTLIfNeeded('pubpeer.ftl')
+
+    const menuitem = doc.createXULElement('menuitem')
+    menuitem.className = 'pubpeer'
+    menuitem.setAttribute('data-l10n-id', 'pubpeer_fetchComments')
+    menuitem.addEventListener('command', () => { Zotero.PubPeer.run('getPubPeerLink') })
+    doc.getElementById('menu_viewPopup').appendChild(menuitem)
   }
+
+  public run(method: string, ...args): void {
+    this[method](...args).catch(err => Zotero.logError(`${method}: ${err}`))
+  }
+
+  public async getPubPeerLink(): Promise<void> {
+    const selectedItems = Zotero.getActiveZoteroPane().getSelectedItems()
+    if (selectedItems.length !== 1) return
+    const doi = selectedItems[0].getField('DOI')
+    if (!doi) return
+
+    const feedback = (await Zotero.PubPeer.get([ doi ]))[0]
+    if (feedback) {
+      let output = `The selected item has ${feedback.total_comments} ${feedback.total_comments === 1 ? 'comment' : 'comments'} on PubPeer`
+      if (feedback.total_comments) output += ` ${feedback.url}`
+      alert(output)
+    }
+  }
+
   public onMainWindowUnload(win: Window) {
     debug('onMainWindowUnload:', win.location.href)
+    const doc = win.document
+    doc.getElementById('zotero-itemmenu').removeEventListener('popupshowing', this, false)
+
+    Array.from(doc.getElementsByClassName('pubpeer')).forEach(elt => {
+      elt.remove()
+    })
+    doc.querySelector('[href="pubpeer.ftl"]').remove()
+  }
+
+  public handleEvent(_event: any) {
+    // const selectedItems = Zotero.getActiveZoteroPane().getSelectedItems()
+    // TODO: hide menu element when appropriate
   }
 
   public async get(dois, options: { refresh?: boolean } = {}): Promise<Feedback[]> {

@@ -35,11 +35,11 @@ export async function shutdown() {
 export function onMainWindowLoad({ window }) {
   debug('onMainWindowLoad')
   window.MozXULElement.insertFTLIfNeeded('pubpeer.ftl')
-  Zotero.PubPeer.onMainWindowLoad(window)
+  Zotero.PubPeer?.onMainWindowLoad(window)
 }
 
 export function onMainWindowUnload({ window }) {
   debug('onMainWindowUnload')
-  Zotero.PubPeer.onMainWindowUnload(window)
+  Zotero.PubPeer?.onMainWindowUnload(window)
 }
 
