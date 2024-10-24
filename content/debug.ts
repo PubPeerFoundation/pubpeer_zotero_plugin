@@ -1,21 +1,28 @@
-function replacer(key, value) {
-  if (value === null) return value
-  if (value instanceof Set) return [...value]
-  if (value instanceof Map) return Object.fromEntries(value)
-  switch (typeof value) {
-    case 'string':
-    case 'number':
-    case 'boolean':
-    case 'object':
-      return value
+function replacer() {
+  const seen = new WeakSet()
+  return (key, value) => {
+    if (typeof value === 'object' && value !== null) {
+      if (seen.has(value)) return '[Circular]'
+      seen.add(value);
+    }
+    if (value === null) return value
+    if (value instanceof Set) return [...value]
+    if (value instanceof Map) return Object.fromEntries(value)
+    switch (typeof value) {
+      case 'string':
+      case 'number':
+      case 'boolean':
+      case 'object':
+        return value
+    }
+    if (Array.isArray(value)) return value
+    return undefined
   }
-  if (Array.isArray(value)) return value
-  return undefined
 }
 
 function to_s(obj: any): string {
   if (typeof obj === 'string') return obj
-  return JSON.stringify(obj, replacer)
+  return JSON.stringify(obj, replacer())
 }
 
 export function debug(...msg): void {

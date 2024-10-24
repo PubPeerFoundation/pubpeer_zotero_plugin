@@ -12,8 +12,16 @@ interface Feedback {
   url: string
   total_comments: number
   users: string[]
-  last_commented_at: Date
+  last_commented_at?: Date
   shown: Record<string, boolean>
+}
+const empty: Feedback = {
+  id: '',
+  title: '',
+  url: '',
+  total_comments: 0,
+  users: [],
+  shown: {}
 }
 
 const xul = 'http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul'
@@ -40,55 +48,6 @@ function getDOI(item): string {
     .map((line: string) => line[1].trim())
   return dois[0] || ''
 }
-
-const itemTree = require('zotero/itemTree')
-$patch$.schedule(itemTree.prototype, 'getColumns', original => function Zotero_ItemTree_prototype_getColumns() {
-  const columns = original.apply(this, arguments)
-  columns.push(/* splice(insertAfter + 1, 0, */{
-    dataKey: 'pubpeer',
-    label: 'PubPeer',
-    flex: '1',
-    zoteroPersist: new Set(['width', 'ordinal', 'hidden', 'sortActive', 'sortDirection']),
-  })
-
-  return columns
-})
-
-$patch$.schedule(itemTree.prototype, '_renderCell', original => function Zotero_ItemTree_prototype_renderCell(index, data, col) {
-  if (col.dataKey !== 'pubpeer') return original.apply(this, arguments)
-
-  const content = document.createElementNS('http://www.w3.org/1999/xhtml', 'span')
-  content.className = 'cell-text'
-
-  const cell = document.createElementNS('http://www.w3.org/1999/xhtml', 'span')
-  cell.className = `cell ${col.className}`
-  cell.append(content)
-
-  let feedback
-
-  const item = this.getRow(index).ref
-  if (item.isRegularItem()) {
-    if (PubPeer.ready.isPending()) {
-      content.className = 'pubpeer-state-loading'
-    }
-    else if (feedback = Zotero.PubPeer.feedback[getDOI(item)]) {
-      content.innerText = `${feedback.total_comments}`
-
-      const state = feedback.users.map(user => Zotero.PubPeer.users[user])
-      if (state.includes('priority')) {
-        content.className = 'pubpeer-state-highlighted'
-      }
-      else if (state.includes('neutral')) {
-        content.className = 'pubpeer-state-neutral'
-      }
-      else {
-        content.className = 'pubpeer-state-muted'
-      }
-    }
-  }
-
-  return cell
-})
 
 $patch$.schedule(Zotero.Item.prototype, 'getField', original => function Zotero_Item_prototype_getField(field, _unformatted, _includeBaseMapped): string {
   try {
@@ -161,7 +120,7 @@ function toggleUser() {
 const ready = Zotero.Promise.defer()
 export class $PubPeer {
   public ready: Promise<boolean> & { isPending: () => boolean } = ready.promise
-  public feedback: { [DOI: string]: Feedback } = {}
+  public feedback: Record<string, Feedback> = {}
   public users: Record<string, 'neutral' | 'priority' | 'muted'> = this.load()
   private dom = new DOMParser
   private serializer = new XMLSerializer
@@ -181,6 +140,11 @@ export class $PubPeer {
 
   public save() {
     Zotero.Prefs.set('pubpeer.users', JSON.stringify(this.users))
+  }
+
+  feedbackFor(item): Feedback {
+    if (PubPeer.ready.isPending() || !item.isRegularItem()) return empty
+    return Zotero.PubPeer.feedback[getDOI(item)] || empty
   }
 
   public async startup() {
@@ -264,14 +228,52 @@ export class $PubPeer {
       },
     })
 
-		for (const win of Zotero.getMainWindows()) {
-			if (win.ZoteroPane) this.onMainWindowLoad(win)
-		}
+    await Zotero.ItemTreeManager.registerColumns({
+      dataKey: 'pubpeer',
+      label: 'PubPeer',
+      pluginID: 'pubpeer@pubpeer.com',
+      dataProvider: (item, _dataKey) => {
+        const feedback = this.feedbackFor(item)
+        // https://groups.google.com/g/zotero-dev/c/4jqa8QIk6DM/m/s86FPjYzAgAJ
+        return `${feedback.total_comments || ''}\t${item.id}`
+      },
+      renderCell: (_index, data, column) => {
+        const cell = document.createElement('span')
+        cell.className = `pubpeer cell ${column.className}`;
+        if (data) {
+          if (PubPeer.ready.isPending()) {
+            cell.className = 'pubpeer-state-loading'
+          }
+          else {
+            const [ total, itemID ] = data.split('\t')
+            cell.textContent = total
+
+            const item = Zotero.Items.get(parseInt(itemID))
+            const feedback = this.feedbackFor(item)
+            const state = feedback.users.map(user => Zotero.PubPeer.users[user])
+            if (state.includes('priority')) {
+              cell.className = 'pubpeer-state-highlighted'
+            }
+            else if (state.includes('neutral')) {
+              cell.className = 'pubpeer-state-neutral'
+            }
+            else {
+              cell.className = 'pubpeer-state-muted'
+            }
+          }
+        }
+        return cell
+      },
+    })
+
+    for (const win of Zotero.getMainWindows()) {
+      if (win.ZoteroPane) this.onMainWindowLoad(win)
+    }
   }
   public async shutdown() {
-		for (const win of Zotero.getMainWindows()) {
-			if (win.ZoteroPane) this.onMainWindowUnload(win)
-		}
+    for (const win of Zotero.getMainWindows()) {
+      if (win.ZoteroPane) this.onMainWindowUnload(win)
+    }
     Zotero.Notifier.unregisterObserver(this.itemObserver)
     $patch$.unpatch()
   }

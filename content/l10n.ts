@@ -1,3 +1,5 @@
+import { debug } from './debug'
+
 const strings = new Localization(['better-bibtex.ftl'], true)
 
 export function localize(id_with_branch: string, params: any = null): string {
@@ -12,7 +14,7 @@ export function localize(id_with_branch: string, params: any = null): string {
     }
   }
   catch (err) {
-    Zotero.debug(`l10n.get error: ${id_with_branch} (${err})`)
+    debug(`l10n.get error: ${id_with_branch} (${err})`)
     return `!${ id_with_branch }`
   }
 }
