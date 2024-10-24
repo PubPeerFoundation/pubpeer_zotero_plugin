@@ -7,6 +7,21 @@ import { DebugLog as DebugLogSender } from 'zotero-plugin/debug-log'
 import { flash } from './flash'
 import { localize } from './l10n'
 
+
+function alert({ title, text }: { title?: string; text: string }): void {
+  Services.prompt.alert(null, title || 'Alert', text)
+}
+
+export function prompt({ title, text, value }: { title?: string; text: string; value?: string }): string {
+  const wrap = { value: value || '' }
+  if (Services.prompt.prompt(null, title || 'Enter text', text, wrap, null, {})) {
+    return wrap.value
+  }
+  else {
+    return ''
+  }
+}
+
 interface Feedback {
   id: string // DOI
   title: string
@@ -311,7 +326,7 @@ export class $PubPeer {
     if (feedback) {
       let output = `The selected item has ${feedback.total_comments} ${feedback.total_comments === 1 ? 'comment' : 'comments'} on PubPeer`
       if (feedback.total_comments) output += ` ${feedback.url}`
-      alert(output)
+      alert({ text: output })
     }
   }
 

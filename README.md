@@ -12,3 +12,5 @@ Install by downloading the [latest XPI](https://github.com/PubPeerFoundation/pub
 * Restart Zotero
 
 After the initial installation, the plugin will auto-update to newer releases, so you should need to perform the process described here only once.
+
+To test, use DOI 10.1080/15548627.2015.1100356
