@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 Components.utils.import('resource://gre/modules/AddonManager.jsm')
 
 import * as $patch$ from './monkey-patch'
@@ -113,7 +112,9 @@ $patch$.schedule(Zotero.Integration.Session.prototype, 'addCitation', original =
 const states = {
   name: [ 'neutral', 'priority', 'muted' ],
   label: { muted: '\u2612', neutral: '\u2610', priority: '\u2611' },
+  icon: { neutral: 'pubpeer.png', muted: 'pubpeer-muted.png', loading: 'loading.png', 'highlighted': 'pubpeer-highlighted.png' },
 }
+
 function toggleUser() {
   const user = this.getAttribute('data-user')
   const state = states.name[(states.name.indexOf(this.getAttribute('data-state')) + 1) % states.name.length]
@@ -253,12 +254,13 @@ export class $PubPeer {
         // https://groups.google.com/g/zotero-dev/c/4jqa8QIk6DM/m/s86FPjYzAgAJ
         return `${feedback.total_comments || ''}\t${item.id}`
       },
-      renderCell: (_index, data, column) => {
+      renderCell: (_index, document, data, column) => {
         const cell = document.createElement('span')
         cell.className = `pubpeer cell ${column.className}`;
+        let icon
         if (data) {
           if (PubPeer.ready.isPending()) {
-            cell.className = 'pubpeer-state-loading'
+            icon = states.icon.loading
           }
           else {
             const [ total, itemID ] = data.split('\t')
@@ -268,15 +270,22 @@ export class $PubPeer {
             const feedback = this.feedbackFor(item)
             const state = feedback.users.map(user => Zotero.PubPeer.users[user])
             if (state.includes('priority')) {
-              cell.className = 'pubpeer-state-highlighted'
+              icon = states.icon.highlighted
             }
             else if (state.includes('neutral')) {
-              cell.className = 'pubpeer-state-neutral'
+              icon = states.icon.neutral
             }
             else {
-              cell.className = 'pubpeer-state-muted'
+              icon = states.icon.muted
             }
           }
+        }
+        if (icon) {
+          cell.style.paddingLeft = '20px'
+          cell.style.backgroundImage = `url(${rootURI}content/skin/${icon})`
+          cell.style.backgroundSize = '10px 10px'
+          cell.style.backgroundRepeat = 'no-repeat'
+          cell.style.backgroundPosition = 'left center'
         }
         return cell
       },
