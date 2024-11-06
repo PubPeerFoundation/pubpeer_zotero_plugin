@@ -254,7 +254,7 @@ export class $PubPeer {
         // https://groups.google.com/g/zotero-dev/c/4jqa8QIk6DM/m/s86FPjYzAgAJ
         return `${feedback.total_comments || ''}\t${item.id}`
       },
-      renderCell: (_index, document, data, column) => {
+      renderCell: (_index, data, column, isFirstColumn, document) => {
         const cell = document.createElement('span')
         cell.className = `pubpeer cell ${column.className}`;
         let icon
