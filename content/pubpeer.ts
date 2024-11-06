@@ -328,10 +328,14 @@ export class $PubPeer {
     const selectedItems = Zotero.getActiveZoteroPane().getSelectedItems()
     if (selectedItems.length !== 1) return
     const doi = selectedItems[0].getField('DOI')
-    flash(`get pubpeer link for ${doi}`)
-    if (!doi) return
+    if (!doi) {
+      flash('item has no DOI')
+      return
+    }
+    flash(`retrieving pubpeer comments for ${doi}`)
 
     const feedback = (await Zotero.PubPeer.get([ doi ]))[0]
+    flash('comments:', JSON.stringify(feedback, null, 2))
     if (feedback) {
       let output = `The selected item has ${feedback.total_comments} ${feedback.total_comments === 1 ? 'comment' : 'comments'} on PubPeer`
       if (feedback.total_comments) output += ` ${feedback.url}`
@@ -358,6 +362,8 @@ export class $PubPeer {
   public async get(dois, options: { refresh?: boolean } = {}): Promise<Feedback[]> {
     const fetch = options.refresh ? dois : dois.filter(doi => !this.feedback[doi])
 
+    flash('7', JSON.stringify({ fetch, dois, options }))
+
     if (fetch.length) {
       try {
         const pubpeer = await Zotero.HTTP.request('POST', 'https://pubpeer.com/v3/publications?devkey=PubPeerZotero', {
@@ -365,6 +371,7 @@ export class $PubPeer {
           responseType: 'json',
           headers: { 'Content-Type': 'application/json;charset=UTF-8' },
         })
+        flash('7', JSON.stringify({ pubpeer: pubpeer?.response }))
 
         for (const feedback of (pubpeer?.response?.feedbacks || [])) {
           if (feedback.last_commented_at.timezone !== 'UTC') debug(`PubPeer.get: ${feedback.id} has timezone ${feedback.last_commented_at.timezone}`)

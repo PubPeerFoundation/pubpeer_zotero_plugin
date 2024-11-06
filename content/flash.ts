@@ -1,5 +1,5 @@
 import { debug } from './debug'
-export function flash(title: string, body?: string, timeout = 8): void {
+export function flash(title: string, body?: string, timeout = 4): void {
   try {
     debug('flash:', JSON.stringify({title, body}))
     const pw = new Zotero.ProgressWindow()
