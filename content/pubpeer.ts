@@ -39,7 +39,10 @@ const empty: Feedback = {
   shown: {}
 }
 
-const xul = 'http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul'
+const NS = {
+  XUL: 'http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul',
+  XHTML: 'http://www.w3.org/1999/xhtml',
+}
 
 /*
 function htmlencode(text) {
@@ -63,6 +66,36 @@ function getDOI(item): string {
     .map((line: string) => line[1].trim())
   return dois[0] || ''
 }
+
+
+function copyNode(sourceNode: Node, targetDocument) {
+  if (sourceNode.nodeType === 3 /*Node.TEXT_NODE */) return targetDocument.createTextNode(sourceNode.textContent)
+
+  const sourceElement: Element = sourceNode as Element
+
+  const targetNode = targetDocument.createElementNS(NS.XHTML, sourceElement.localName)
+  for (const attr of Array.from(sourceElement.attributes)) {
+    targetNode.setAttribute(attr.name, attr.value)
+  }
+
+  for (const child of Array.from(sourceElement.childNodes)) {
+    targetNode.appendChild(copyNode(child, targetDocument))
+  }
+
+  return targetNode
+}
+
+/*
+function copyTree(sourceNode, targetNode) {
+  while (targetNode.firstChild) {
+    targetNode.removeChild(targetNode.firstChild)
+  }
+
+  sourceNode.childNodes.forEach(child => {
+    targetNode.appendChild(copyNode(child))
+  })
+}
+*/
 
 $patch$.schedule(Zotero.Item.prototype, 'getField', original => function Zotero_Item_prototype_getField(field, _unformatted, _includeBaseMapped): string {
   try {
@@ -192,41 +225,47 @@ export class $PubPeer {
         this.item = item
       },
       onRender: ({ body, setSectionSummary }) => {
+        debug('section: onRender')
         while (body.firstChild) {
-          body.removeChild(body.lastChild);
+          body.removeChild(body.lastChild)
         }
         setSectionSummary(localize('pubpeer_itemPane_noComment'))
       },
       onAsyncRender: async ({ body, item }) => {
+        debug('section: onAsyncRender')
         this.item = item
-        const doi = item.getField('DOI')
+        const doi = getDOI(item)
         const feedback = doi && (await PubPeer.get([doi]))[0]
+        debug('onAsyncRender:', { doi, feedback })
+
+        const doc = body.ownerDocument
+
         if (feedback) {
           let summary = localize('pubpeer_itemPane_summary', {
             ...feedback,
             users: feedback.users.join(', '),
             last_commented_at: feedback.last_commented_at.toLocaleString()
           })
-          summary = `<div xmlns:html="http://www.w3.org/1999/xhtml">${summary}</div>`
-          summary = summary.replace(/(<\/?)/g, '$1html:')
+          summary = `<div>${summary}</div>`
+          debug(summary)
 
           const html = this.dom.parseFromString(summary, 'text/xml').documentElement as Element
           for (const a of Array.from(html.querySelectorAll('a'))) {
-            if (a.getAttribute('url')) {
-              a.setAttribute('onclick', 'Zotero.launchURL(this.getAttribute("url")); return false;')
+            if (a.getAttribute('url') || a.getAttribute('href')) {
+              a.setAttribute('onclick', 'Zotero.launchURL(this.getAttribute("url") || this.getAttribute("href")); return false;')
               a.setAttribute('style', 'color: blue')
             }
           }
-          body.appendChild(html)
+          body.appendChild(copyNode(html, doc))
 
           for (const user of feedback.users) {
             Zotero.PubPeer.users[user] = Zotero.PubPeer.users[user] || 'neutral'
 
-            const hbox: any = body.appendChild(body.ownerDocument.createElementNS(xul, 'hbox'))
+            const hbox: any = body.appendChild(doc.createElementNS(NS.XUL, 'hbox'))
             hbox.setAttribute('align', 'center')
             hbox.setAttribute('class', `pubpeer-user pubpeer-user-${Zotero.PubPeer.users[user]}`)
 
-            const cb: any = hbox.appendChild(body.ownerDocument.createElementNS(xul, 'label'))
+            const cb: any = hbox.appendChild(doc.createElementNS(NS.XUL, 'label'))
             const state = Zotero.PubPeer.users[user]
             cb.setAttribute('class', 'pubpeer-checkbox')
             cb.value = states.label[state]
@@ -234,7 +273,7 @@ export class $PubPeer {
             cb.setAttribute('data-state', state)
             cb.onclick = toggleUser
 
-            const label: any = hbox.appendChild(body.ownerDocument.createElementNS(xul, 'label'))
+            const label: any = hbox.appendChild(doc.createElementNS(NS.XUL, 'label'))
             label.setAttribute('class', 'pubpeer-username')
             label.setAttribute('value', user)
             label.setAttribute('flex', '8')
@@ -255,8 +294,8 @@ export class $PubPeer {
         return `${feedback.total_comments || ''}\t${item.id}`
       },
       renderCell: (_index, data, column, isFirstColumn, document) => {
-        const cell = document.createElement('span')
-        cell.className = `pubpeer cell ${column.className}`;
+        const cell = document.createElementNS(NS.XHTML, 'span')
+        cell.className = `pubpeer cell ${column.className}`
         let icon
         if (data) {
           if (PubPeer.ready.isPending()) {
@@ -327,7 +366,7 @@ export class $PubPeer {
   public async getPubPeerLink(): Promise<void> {
     const selectedItems = Zotero.getActiveZoteroPane().getSelectedItems()
     if (selectedItems.length !== 1) return
-    const doi = selectedItems[0].getField('DOI')
+    const doi = getDOI(selectedItems[0])
     if (!doi) {
       flash('item has no DOI')
       return
@@ -335,7 +374,6 @@ export class $PubPeer {
     flash(`retrieving pubpeer comments for ${doi}`)
 
     const feedback = (await Zotero.PubPeer.get([ doi ]))[0]
-    flash('comments:', JSON.stringify(feedback, null, 2))
     if (feedback) {
       let output = `The selected item has ${feedback.total_comments} ${feedback.total_comments === 1 ? 'comment' : 'comments'} on PubPeer`
       if (feedback.total_comments) output += ` ${feedback.url}`
@@ -348,9 +386,9 @@ export class $PubPeer {
     const doc = win.document
     doc.getElementById('zotero-itemmenu').removeEventListener('popupshowing', this, false)
 
-    Array.from(doc.getElementsByClassName('pubpeer')).forEach(elt => {
+    for (const elt of Array.from(doc.getElementsByClassName('pubpeer'))) {
       elt.remove()
-    })
+    }
     doc.querySelector('[href="pubpeer.ftl"]').remove()
   }
 
@@ -362,8 +400,6 @@ export class $PubPeer {
   public async get(dois, options: { refresh?: boolean } = {}): Promise<Feedback[]> {
     const fetch = options.refresh ? dois : dois.filter(doi => !this.feedback[doi])
 
-    flash('7', JSON.stringify({ fetch, dois, options }))
-
     if (fetch.length) {
       try {
         const pubpeer = await Zotero.HTTP.request('POST', 'https://pubpeer.com/v3/publications?devkey=PubPeerZotero', {
@@ -371,7 +407,6 @@ export class $PubPeer {
           responseType: 'json',
           headers: { 'Content-Type': 'application/json;charset=UTF-8' },
         })
-        flash('7', JSON.stringify({ pubpeer: pubpeer?.response }))
 
         for (const feedback of (pubpeer?.response?.feedbacks || [])) {
           if (feedback.last_commented_at.timezone !== 'UTC') debug(`PubPeer.get: ${feedback.id} has timezone ${feedback.last_commented_at.timezone}`)
