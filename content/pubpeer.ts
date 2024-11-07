@@ -27,7 +27,7 @@ interface Feedback {
   url: string
   total_comments: number
   users: string[]
-  last_commented_at?: Date
+  last_commented_at?: string
   shown: Record<string, boolean>
 }
 const empty: Feedback = {
@@ -54,17 +54,17 @@ function plaintext(text) {
 */
 
 function getDOI(item): string {
-  const doi: string = item.getField('DOI')
-  if (doi) return doi
-
-  const extra = item.getField('extra')
-  if (!extra) return ''
-
-  const dois: string[] = extra.split('\n')
-    .map((line: string) => line.match(/^DOI:\s*(.+)/i))
-    .filter((line: string) => line)
-    .map((line: string) => line[1].trim())
-  return dois[0] || ''
+  let doi: string = item.getField('DOI')
+  if (!doi) {
+    const extra = item.getField('extra')
+    if (extra) {
+      doi = extra.split('\n')
+        .map((line: string) => line.match(/^DOI:\s*(.+)/i))
+        .map((line: string) => line[1].trim())
+        .find((line: string) => line)
+    }
+  }
+  return (doi || '').toLowerCase()
 }
 
 
@@ -101,9 +101,7 @@ $patch$.schedule(Zotero.Item.prototype, 'getField', original => function Zotero_
   try {
     if (field === 'pubpeer') {
       if (Zotero.PubPeer.ready.isPending()) return ''
-      const doi = getDOI(this)
-      if (!doi || !Zotero.PubPeer.feedback[doi]) return ''
-      return ' '
+      return `${Zotero.PubPeer.feedback[getDOI(this)]?.total_comments || ''}`
     }
   }
   catch (err) {
@@ -126,12 +124,10 @@ $patch$.schedule(Zotero.Integration.Session.prototype, 'addCitation', original =
       Zotero.Items.getAsync(ids).then(items => {
         let feedback: Feedback
         for (const item of items) {
-          if (feedback = Zotero.PubPeer.feedback[getDOI(item)]) {
-            if (!feedback.shown[this.sessionID]) {
-              const text = Zotero.Cite.makeFormattedBibliographyOrCitationList(cslEngine, [item], 'text')
-              flash('ALERT: PubPeer feedback', `This article "${item.getField('title')}" has comments on PubPeer: ${feedback.url}\n\n${text}`)
-              feedback.shown[this.sessionID] = true
-            }
+          if ((feedback = Zotero.PubPeer.feedback[getDOI(item)]) && !feedback.shown[this.sessionID]) {
+            const text = Zotero.Cite.makeFormattedBibliographyOrCitationList(cslEngine, [item], 'text')
+            flash('ALERT: PubPeer feedback', `This article "${item.getField('title')}" has comments on PubPeer: ${feedback.url}\n\n${text}`)
+            feedback.shown[this.sessionID] = true
           }
         }
       })
@@ -235,18 +231,15 @@ export class $PubPeer {
         this.item = item
       },
       onRender: ({ body, setSectionSummary }) => {
-        debug('section: onRender')
         while (body.firstChild) {
           body.removeChild(body.lastChild)
         }
         setSectionSummary(localize('pubpeer_itemPane_noComment'))
       },
       onAsyncRender: async ({ body, item, setSectionSummary }) => {
-        debug('section: onAsyncRender')
         this.item = item
         const doi = getDOI(item)
         const feedback = doi && (await PubPeer.get([doi]))[0]
-        debug('onAsyncRender:', { doi, feedback })
 
         const doc = body.ownerDocument
 
@@ -254,10 +247,9 @@ export class $PubPeer {
           let summary = localize('pubpeer_itemPane_summary', {
             ...feedback,
             users: feedback.users.join(', '),
-            last_commented_at: feedback.last_commented_at.toLocaleString()
+            last_commented_at: feedback.last_commented_at,
           })
           summary = `<div>${summary}</div>`
-          debug(summary)
 
           const html = this.dom.parseFromString(summary, 'text/xml').documentElement as Element
           for (const a of Array.from(html.querySelectorAll('a'))) {
@@ -291,7 +283,7 @@ export class $PubPeer {
             summary = localize('pubpeer_itemPane_section', {
               ...feedback,
               users: feedback.users.join(', '),
-              last_commented_at: feedback.last_commented_at.toLocaleString()
+              last_commented_at: feedback.last_commented_at,
             })
             setSectionSummary(summary)
           }
@@ -359,7 +351,6 @@ export class $PubPeer {
   }
 
   public onMainWindowLoad(win: Window & { MozXULElement: any }) {
-    debug('onMainWindowLoad:', win.location.href)
     const doc: Document & { createXULElement: any } = win.document as any
 
     if (doc.querySelector('menuitem.pubpeer')) return
@@ -398,7 +389,6 @@ export class $PubPeer {
   }
 
   public onMainWindowUnload(win: Window) {
-    debug('onMainWindowUnload:', win.location.href)
     const doc = win.document
     doc.getElementById('zotero-itemmenu').removeEventListener('popupshowing', this, false)
 
@@ -414,21 +404,31 @@ export class $PubPeer {
   }
 
   public async get(dois, options: { refresh?: boolean } = {}): Promise<Feedback[]> {
+    dois = dois.map(doi => doi.toLowerCase())
     const fetch = options.refresh ? dois : dois.filter(doi => !this.feedback[doi])
 
     if (fetch.length) {
       try {
-        const pubpeer = await Zotero.HTTP.request('POST', 'https://pubpeer.com/v3/publications?devkey=PubPeerZotero', {
+        const pubpeer = (await Zotero.HTTP.request('POST', 'https://pubpeer.com/v3/publications?devkey=PubPeerZotero', {
           body: JSON.stringify({ dois: fetch }),
           responseType: 'json',
           headers: { 'Content-Type': 'application/json;charset=UTF-8' },
-        })
+        })).response
 
-        for (const feedback of (pubpeer?.response?.feedbacks || [])) {
-          if (feedback.last_commented_at.timezone !== 'UTC') debug(`PubPeer.get: ${feedback.id} has timezone ${feedback.last_commented_at.timezone}`)
+
+        for (const feedback of (pubpeer.feedbacks || [])) {
+          if (!feedback.last_commented_at.timezone) {
+            debug(`PubPeer.get: ${feedback.id} has no timezone`)
+          }
+          else if (feedback.last_commented_at.timezone !== 'UTC') {
+            debug(`PubPeer.get: ${feedback.id} has timezone ${feedback.last_commented_at.timezone}`)
+          }
+
+          const last_commented_at = Date.parse(`${feedback.last_commented_at.date}${(feedback.last_commented_at.timezone || 'UTC').replace(/^UTC$/, 'Z')}`)
+          feedback.id = feedback.id.toLowerCase()
           this.feedback[feedback.id] = {
             ...feedback,
-            last_commented_at: new Date(feedback.last_commented_at.date as string + 'Z'),
+            last_commented_at: isNaN(last_commented_at) ? `${feedback.last_commented_at.date}${feedback.last_commented_at.timezone || ''}` : (new Date(last_commented_at)).toLocaleString(),
             users: feedback.users.split(/\s*,\s*/).filter((u: string) => u),
             shown: {},
           }
