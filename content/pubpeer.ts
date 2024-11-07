@@ -424,6 +424,8 @@ export class $PubPeer {
           headers: { 'Content-Type': 'application/json;charset=UTF-8' },
         })
 
+        debug('pubpeer:', { dois: fetch }, '=>', pubpeer.response)
+
         for (const feedback of (pubpeer?.response?.feedbacks || [])) {
           if (feedback.last_commented_at.timezone !== 'UTC') debug(`PubPeer.get: ${feedback.id} has timezone ${feedback.last_commented_at.timezone}`)
           this.feedback[feedback.id] = {
