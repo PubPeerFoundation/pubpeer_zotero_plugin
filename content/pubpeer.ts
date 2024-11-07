@@ -188,6 +188,16 @@ export class $PubPeer {
     }
   }
 
+  public launch(node) {
+    const urls = [ node.getAttribute('url'), node.getAttribute('href') ].filter(url => url && url !== '#')
+    if (!urls.length) debug('launch: no url')
+    for (const url of urls) {
+      debug('launch:', url)
+      Zotero.launchURL(url)
+    }
+    return false
+  }
+
   public save() {
     Zotero.Prefs.set('pubpeer.users', JSON.stringify(this.users))
   }
@@ -231,7 +241,7 @@ export class $PubPeer {
         }
         setSectionSummary(localize('pubpeer_itemPane_noComment'))
       },
-      onAsyncRender: async ({ body, item }) => {
+      onAsyncRender: async ({ body, item, setSectionSummary }) => {
         debug('section: onAsyncRender')
         this.item = item
         const doi = getDOI(item)
@@ -252,7 +262,7 @@ export class $PubPeer {
           const html = this.dom.parseFromString(summary, 'text/xml').documentElement as Element
           for (const a of Array.from(html.querySelectorAll('a'))) {
             if (a.getAttribute('url') || a.getAttribute('href')) {
-              a.setAttribute('onclick', 'Zotero.launchURL(this.getAttribute("url") || this.getAttribute("href")); return false;')
+              a.setAttribute('onclick', 'return Zotero.PubPeer.launch(this)')
               a.setAttribute('style', 'color: blue')
             }
           }
@@ -277,9 +287,15 @@ export class $PubPeer {
             label.setAttribute('class', 'pubpeer-username')
             label.setAttribute('value', user)
             label.setAttribute('flex', '8')
+
+            summary = localize('pubpeer_itemPane_section', {
+              ...feedback,
+              users: feedback.users.join(', '),
+              last_commented_at: feedback.last_commented_at.toLocaleString()
+            })
+            setSectionSummary(summary)
           }
 
-          // setSectionSummary(localize('pubpeer_itemPane_summary', { total_comments: feedback.total_comments, url, last_commented_at, }))
         }
       },
     })
