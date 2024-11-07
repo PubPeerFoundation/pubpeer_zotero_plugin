@@ -22,7 +22,7 @@ function replacer() {
 
 function to_s(obj: any): string {
   if (typeof obj === 'string') return obj
-  return JSON.stringify(obj, replacer())
+  return JSON.stringify(obj, replacer(), 2)
 }
 
 export function debug(...msg): void {
