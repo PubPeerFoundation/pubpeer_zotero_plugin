@@ -384,7 +384,7 @@ export class $PubPeer {
     if (feedback) {
       let output = `The selected item has ${feedback.total_comments} ${feedback.total_comments === 1 ? 'comment' : 'comments'} on PubPeer`
       if (feedback.total_comments) output += ` ${feedback.url}`
-      alert({ text: output })
+      flash('PubPeer', output)
     }
   }
 
