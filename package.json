@@ -1,6 +1,6 @@
 {
   "name": "zotero-pubpeer",
-  "version": "0.0.17",
+  "version": "1.0.0",
   "description": "Plugin to show if references in Zotero have PubPeer comments",
   "scripts": {
     "tsc": "tsc --noEmit",
