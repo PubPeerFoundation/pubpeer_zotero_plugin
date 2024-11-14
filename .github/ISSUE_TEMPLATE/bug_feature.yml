@@ -1,0 +1,38 @@
+name: Bug Report/Feature request
+description: File a bug report or a feature request
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this form if you want a change to the PubPeer plugin.
+
+        Alongside a description of your problem/question/feature suggestion, please also include a debug log ID.
+
+        You can generate a debug log ID by:
+        1. turning on debug logging (Help -> Debug output logging -> Enable
+        2. reproduce the problem
+        3. select the items relevant to the problem
+        4. send a debug log (Help -> Send debug log to file.io -> PubPeer)
+
+        Please be available in the days following your report for follow-up questions and testing.
+
+        ## Please don't enter "N/A" in the debug log ID field.
+
+        "N/A" is usually inaccurate (for bugs and feature requests alike); if you're unsure of its relevance, please generate one anyway. 
+
+  - type: input
+    id: debug-log
+    attributes:
+      label: Debug log ID
+      description: Please fill in an actual debug log ID here. Logs that look like `D<number>` are Zotero logs, we have no access to those. PubPeer log IDs will have `-fio-` in the ID.
+      placeholder: ex. FHM443CH-fio-fL6ATnOUp9Wr
+    validations:
+      required: true
+  - type: textarea
+    id: request
+    attributes:
+      label: What happened?
+      description: and what did you expect to happen?
+      placeholder: Tell us what you see!
+    validations:
+      required: true
