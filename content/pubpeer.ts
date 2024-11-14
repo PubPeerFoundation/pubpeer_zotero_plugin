@@ -57,18 +57,9 @@ function plaintext(text) {
 
 function getDOI(item): string {
   let doi: string = item.getField('DOI')
-  if (!doi) {
-    const extra = item.getField('extra')
-    if (extra) {
-      doi = extra.split('\n')
-        .map((line: string) => line.match(/^DOI:\s*(.+)/i))
-        .map((line: string) => line[1].trim())
-        .find((line: string) => line)
-    }
-  }
+  if (!doi) doi = (item.getField('extra') || '').match(/^DOI:\s*(.+)/m)?.[1]
   return (doi || '').toLowerCase()
 }
-
 
 function copyNode(sourceNode: Node, targetDocument) {
   if (sourceNode.nodeType === 3 /*Node.TEXT_NODE */) return targetDocument.createTextNode(sourceNode.textContent)
