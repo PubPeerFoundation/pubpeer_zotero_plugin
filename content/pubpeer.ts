@@ -57,7 +57,7 @@ function plaintext(text) {
 
 function getDOI(item): string {
   let doi: string = item.getField('DOI')
-  if (!doi) doi = (item.getField('extra') || '').match(/^DOI:\s*(.+)/m)?.[1]
+  if (!doi) doi = (item.getField('extra') || '').match(/^DOI:\s*(.+)/im)?.[1]
   return (doi || '').toLowerCase()
 }
 
@@ -446,11 +446,11 @@ export class $PubPeer {
       WHERE fieldname IN ('extra', 'DOI')
     `.replace(/[\s\n]+/g, ' ').trim()
 
-    let dois: string[] = []
+    const dois: string[] = []
     for (const doi of (await Zotero.DB.queryAsync(query) as { fieldName: string, value: string }[])) {
       switch (doi.fieldName) {
         case 'extra':
-          dois = dois.concat(doi.value.split('\n').map((line: string) => line.match(/^DOI:\s*(.+)/i)).filter(line => line).map(line => line[1].trim()))
+          dois.push(doi.value.match(/^DOI:\s*(.+)/im)?.[1])
           break
         case 'DOI':
           dois.push(doi.value)
@@ -458,7 +458,7 @@ export class $PubPeer {
       }
     }
 
-    await this.get(dois, { refresh: true })
+    await this.get(dois.filter(_ => _), { refresh: true })
 
     setTimeout(this.refresh.bind(this), 24 * 60 * 60 * 1000)
   }
