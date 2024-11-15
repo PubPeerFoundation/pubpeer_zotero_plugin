@@ -9,7 +9,7 @@ body:
         Alongside a description of your problem/question/feature suggestion, please also include a debug log ID.
 
         You can generate a debug log ID by:
-        1. turning on debug logging (Help -> Debug output logging -> Enable
+        1. turning on debug logging (Help -> Debug output logging -> Enable)
         2. reproduce the problem
         3. select the items relevant to the problem
         4. send a debug log (Help -> Send debug log to file.io -> PubPeer)

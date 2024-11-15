@@ -27,7 +27,7 @@
   "homepage": "https://github.com/PubPeerFoundation/pubpeer_zotero_plugin",
   "dependencies": {
     "@xmldom/xmldom": "^0.9.5",
-    "zotero-plugin": "2.0.32"
+    "zotero-plugin": "3.1.0"
   },
   "xpi": {
     "name": "Pubpeer Plugin for Zotero",
