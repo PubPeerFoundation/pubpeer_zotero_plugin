@@ -1,7 +1,7 @@
 Components.utils.import('resource://gre/modules/AddonManager.jsm')
 
 import * as $patch$ from './monkey-patch'
-import { debug } from './debug'
+import { log } from './debug'
 import { DebugLog as DebugLogSender } from 'zotero-plugin/debug-log'
 import { flash } from './flash'
 import { localize } from './l10n'
@@ -127,7 +127,7 @@ $patch$.schedule(Zotero.Integration.Session.prototype, 'addCitation', original =
     }
   }
   catch (err) {
-    debug('Zotero.Integration.Session.prototype.addCitation:', err.message)
+    log.debug('Zotero.Integration.Session.prototype.addCitation:', err.message)
   }
 })
 
@@ -152,7 +152,7 @@ function toggleUser() {
     Zotero.Notifier.trigger('modify', 'item', [Zotero.PubPeer.item.id])
   }
   else {
-    debug('toggleUser but no item set?')
+    log.debug('toggleUser but no item set?')
   }
 }
 
@@ -179,9 +179,9 @@ export class $PubPeer {
 
   public launch(node) {
     const urls = [ node.getAttribute('url'), node.getAttribute('href') ].filter(url => url && url !== '#')
-    if (!urls.length) debug('launch: no url')
+    if (!urls.length) log.debug('launch: no url')
     for (const url of urls) {
-      debug('launch:', url)
+      log.debug('launch:', url)
       Zotero.launchURL(url)
     }
     return false
@@ -201,8 +201,6 @@ export class $PubPeer {
     $patch$.execute()
     ready.resolve(true)
     await this.refresh()
-
-    Zotero.getActiveZoteroPane().itemsView.refreshAndMaintainSelection()
 
     this.itemObserver = Zotero.Notifier.registerObserver(this, ['item'], 'PubPeer', 1)
 
@@ -296,6 +294,7 @@ export class $PubPeer {
       },
       renderCell: (_index, data, column, isFirstColumn, document) => {
         const cell = document.createElementNS(NS.XHTML, 'span')
+        log.debug('renderCell', { data })
         cell.className = `pubpeer cell ${column.className}`
         let icon
         if (data) {
@@ -410,10 +409,10 @@ export class $PubPeer {
 
         for (const feedback of (pubpeer.feedbacks || [])) {
           if (!feedback.last_commented_at.timezone) {
-            debug(`PubPeer.get: ${feedback.id} has no timezone`)
+            log.debug(`PubPeer.get: ${feedback.id} has no timezone`)
           }
           else if (feedback.last_commented_at.timezone !== 'UTC') {
-            debug(`PubPeer.get: ${feedback.id} has timezone ${feedback.last_commented_at.timezone}`)
+            log.debug(`PubPeer.get: ${feedback.id} has timezone ${feedback.last_commented_at.timezone}`)
           }
 
           const last_commented_at = Date.parse(`${feedback.last_commented_at.date}${(feedback.last_commented_at.timezone || 'UTC').replace(/^UTC$/, 'Z')}`)
@@ -430,7 +429,7 @@ export class $PubPeer {
         }
       }
       catch (err) {
-        debug(`PubPeer.get(${fetch}): ${err}`)
+        log.debug(`PubPeer.get(${fetch}): ${err}`)
       }
     }
 

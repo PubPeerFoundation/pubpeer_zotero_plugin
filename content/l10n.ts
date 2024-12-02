@@ -1,4 +1,4 @@
-import { debug } from './debug'
+import { log } from './debug'
 
 const strings = new Localization(['zotero-pubpeer.ftl'], true)
 
@@ -14,7 +14,7 @@ export function localize(id_with_branch: string, params: any = null): string {
     }
   }
   catch (err) {
-    debug(`l10n.get error: ${id_with_branch} (${err})`)
+    log.debug(`l10n.get error: ${id_with_branch} (${err})`)
     return `!${ id_with_branch }`
   }
 }
