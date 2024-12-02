@@ -1,15 +1,15 @@
-import { debug } from './content/debug'
+import { log } from './content/debug'
 
 export function install() {
-  debug('installed')
+  log.debug('installed')
 }
 export function uninstall() {
-  debug('uninstalled')
+  log.debug('uninstalled')
 }
 
 let chromeHandle
 export async function startup({ id, version, rootURI }) {
-  debug('startup', id, version)
+  log.debug('startup', id, version)
 
   const aomStartup = Components.classes['@mozilla.org/addons/addon-manager-startup;1'].getService(Components.interfaces.amIAddonManagerStartup)
   const manifestURI = Services.io.newURI(`${ rootURI }manifest.json`)
@@ -23,7 +23,7 @@ export async function startup({ id, version, rootURI }) {
 }
 
 export async function shutdown() {
-  debug('shutdown')
+  log.debug('shutdown')
   await Zotero.PubPeer.shutdown()
   if (chromeHandle) {
     chromeHandle.destruct()
@@ -33,13 +33,13 @@ export async function shutdown() {
 }
 
 export function onMainWindowLoad({ window }) {
-  debug('onMainWindowLoad')
+  log.debug('onMainWindowLoad')
   window.MozXULElement.insertFTLIfNeeded('pubpeer.ftl')
   Zotero.PubPeer?.onMainWindowLoad(window)
 }
 
 export function onMainWindowUnload({ window }) {
-  debug('onMainWindowUnload')
+  log.debug('onMainWindowUnload')
   Zotero.PubPeer?.onMainWindowUnload(window)
 }
 
