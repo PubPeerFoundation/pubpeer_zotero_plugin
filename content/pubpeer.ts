@@ -285,7 +285,7 @@ export class $PubPeer {
       },
     })
 
-    await Zotero.ItemTreeManager.registerColumns({
+    await Zotero.ItemTreeManager.registerColumn?.({
       dataKey: 'pubpeer',
       label: 'PubPeer',
       pluginID: 'pubpeer@pubpeer.com',
