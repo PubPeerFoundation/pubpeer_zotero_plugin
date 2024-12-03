@@ -192,6 +192,7 @@ export class $PubPeer {
   }
 
   feedbackFor(item): Feedback {
+    log.debug('feedbackFor:', { DOI: getDOI(item), feedback: Zotero.PubPeer.feedback[getDOI(item)] })
     if (PubPeer.ready.isPending() || !item.isRegularItem()) return empty
     return Zotero.PubPeer.feedback[getDOI(item)] || empty
   }
@@ -289,6 +290,7 @@ export class $PubPeer {
       pluginID: 'pubpeer@pubpeer.com',
       dataProvider: (item, _dataKey) => {
         const feedback = this.feedbackFor(item)
+        log.debug('dataProvider:', { feedback })
         // https://groups.google.com/g/zotero-dev/c/4jqa8QIk6DM/m/s86FPjYzAgAJ
         return `${feedback.total_comments || ''}\t${item.id}`
       },
