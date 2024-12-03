@@ -94,7 +94,7 @@ $patch$.schedule(Zotero.Item.prototype, 'getField', original => function Zotero_
   try {
     if (field === 'pubpeer') {
       if (Zotero.PubPeer.ready.isPending()) return ''
-      return `${Zotero.PubPeer.feedback[getDOI(this)]?.total_comments || ''}`
+      return `${Zotero.PubPeer.feedback(this).total_comments || ''}`
     }
   }
   catch (err) {
@@ -117,7 +117,7 @@ $patch$.schedule(Zotero.Integration.Session.prototype, 'addCitation', original =
       Zotero.Items.getAsync(ids).then(items => {
         let feedback: Feedback
         for (const item of items) {
-          if ((feedback = Zotero.PubPeer.feedback[getDOI(item)]) && !feedback.shown[this.sessionID]) {
+          if ((feedback = Zotero.PubPeer.feedback(item)).last_commented_at && !feedback.shown[this.sessionID]) {
             const text = Zotero.Cite.makeFormattedBibliographyOrCitationList(cslEngine, [item], 'text')
             flash('ALERT: PubPeer feedback', `This article "${item.getField('title')}" has comments on PubPeer: ${feedback.url}\n\n${text}`)
             feedback.shown[this.sessionID] = true
@@ -158,13 +158,34 @@ function toggleUser() {
 
 const ready = Zotero.Promise.defer()
 export class $PubPeer {
+  public item: any
+
   public ready: Promise<boolean> & { isPending: () => boolean } = ready.promise
-  public feedback: Record<string, Feedback> = {}
   public users: Record<string, 'neutral' | 'priority' | 'muted'> = this.load()
   private dom = new DOMParser
   private serializer = new XMLSerializer
-  public item: any
-  
+
+  #feedback: Record<string, Feedback> = {}
+  public feedback(item) {
+    if (typeof item.id !== 'number') {
+      log.debug('item is not a Zotero item')
+      return empty
+    }
+
+    let doi: string = item.getField('DOI')
+    if (!doi) doi = (item.getField('extra') || '').match(/^DOI:\s*(.+)/im)?.[1]
+    doi = (doi || '').toLowerCase()
+    if (!doi) {
+      log.debug('item', item.id, 'does not have a DOI')
+      return empty
+    }
+
+    if (doi in this.#feedback) return this.#feedback[doi]
+
+    log.debug('no feeback retrieved for', doi)
+    return empty
+  }
+
   private itemObserver: number
 
   public load(): Record<string, 'neutral' | 'priority' | 'muted'> {
@@ -189,12 +210,6 @@ export class $PubPeer {
 
   public save() {
     Zotero.Prefs.set('pubpeer.users', JSON.stringify(this.users))
-  }
-
-  feedbackFor(item): Feedback {
-    log.debug('feedbackFor:', { DOI: getDOI(item), feedback: Zotero.PubPeer.feedback[getDOI(item)] })
-    if (PubPeer.ready.isPending() || !item.isRegularItem()) return empty
-    return Zotero.PubPeer.feedback[getDOI(item)] || empty
   }
 
   public async startup() {
@@ -230,12 +245,11 @@ export class $PubPeer {
       },
       onAsyncRender: async ({ body, item, setSectionSummary }) => {
         this.item = item
-        const doi = getDOI(item)
-        const feedback = doi && (await PubPeer.get([doi]))[0]
+        const feedback = this.feedback(item)
 
         const doc = body.ownerDocument
 
-        if (feedback) {
+        if (feedback.last_commented_at) {
           let summary = localize('pubpeer_itemPane_summary', {
             ...feedback,
             users: feedback.users.join(', '),
@@ -279,7 +293,6 @@ export class $PubPeer {
             })
             setSectionSummary(summary)
           }
-
         }
       },
     })
@@ -289,7 +302,7 @@ export class $PubPeer {
       label: 'PubPeer',
       pluginID: 'pubpeer@pubpeer.com',
       dataProvider: (item, _dataKey) => {
-        const feedback = this.feedbackFor(item)
+        const feedback = this.feedback(item)
         log.debug('dataProvider:', { feedback })
         // https://groups.google.com/g/zotero-dev/c/4jqa8QIk6DM/m/s86FPjYzAgAJ
         return `${feedback.total_comments || ''}\t${item.id}`
@@ -308,7 +321,7 @@ export class $PubPeer {
             cell.textContent = total
 
             const item = Zotero.Items.get(parseInt(itemID))
-            const feedback = this.feedbackFor(item)
+            const feedback = this.feedback(item)
             const state = feedback.users.map(user => Zotero.PubPeer.users[user])
             if (state.includes('priority')) {
               icon = states.icon.highlighted
@@ -356,30 +369,31 @@ export class $PubPeer {
     menuitem.className = 'pubpeer'
     // menuitem.setAttribute('data-l10n-id', 'pubpeer_fetchComments')
     menuitem.setAttribute('label', localize('pubpeer_fetchComments'))
-    menuitem.addEventListener('command', () => { Zotero.PubPeer.run('getPubPeerLink') })
+    menuitem.addEventListener('command', async () => {
+      try {
+        await this.fetch()
+      }
+      catch (err) {
+        log.error('fetch failed:', err)
+      }
+    })
     doc.getElementById('zotero-itemmenu').appendChild(menuitem)
   }
 
-  public run(method: string, ...args): void {
-    this[method](...args).catch(err => Zotero.logError(`${method}: ${err}`))
-  }
+  public async fetch(): Promise<void> {
+    const selectedItems = Zotero.getActiveZoteroPane().getSelectedItems() || []
+    const dois = selectedItems.map(item => getDOI(item)).filter(_ => _)
+    if (!dois.length) return
 
-  public async getPubPeerLink(): Promise<void> {
-    const selectedItems = Zotero.getActiveZoteroPane().getSelectedItems()
-    if (selectedItems.length !== 1) return
-    const doi = getDOI(selectedItems[0])
-    if (!doi) {
-      flash('item has no DOI')
-      return
+    for (const feedback of await this.get(dois)) {
+      if (feedback) {
+        let output = `The selected item has ${feedback.total_comments} ${feedback.total_comments === 1 ? 'comment' : 'comments'} on PubPeer`
+        if (feedback.total_comments) output += ` ${feedback.url}`
+        flash('PubPeer', output)
+      }
     }
-    flash(`retrieving pubpeer comments for ${doi}`)
 
-    const feedback = (await Zotero.PubPeer.get([ doi ]))[0]
-    if (feedback) {
-      let output = `The selected item has ${feedback.total_comments} ${feedback.total_comments === 1 ? 'comment' : 'comments'} on PubPeer`
-      if (feedback.total_comments) output += ` ${feedback.url}`
-      flash('PubPeer', output)
-    }
+    Zotero.ItemTreeManager.refreshColumns()
   }
 
   public onMainWindowUnload(win: Window) {
@@ -399,12 +413,12 @@ export class $PubPeer {
 
   public async get(dois, options: { refresh?: boolean } = {}): Promise<Feedback[]> {
     dois = dois.map(doi => doi.toLowerCase())
-    const fetch = options.refresh ? dois : dois.filter(doi => !this.feedback[doi])
+    const refresh = options.refresh ? dois : dois.filter(doi => !this.#feedback[doi.toLowerCase()])
 
-    if (fetch.length) {
+    if (refresh.length) {
       try {
         const pubpeer = (await Zotero.HTTP.request('POST', 'https://pubpeer.com/v3/publications?devkey=PubPeerZotero', {
-          body: JSON.stringify({ dois: fetch }),
+          body: JSON.stringify({ dois: refresh }),
           responseType: 'json',
           headers: { 'Content-Type': 'application/json;charset=UTF-8' },
         })).response
@@ -419,23 +433,23 @@ export class $PubPeer {
 
           const last_commented_at = Date.parse(`${feedback.last_commented_at.date}${(feedback.last_commented_at.timezone || 'UTC').replace(/^UTC$/, 'Z')}`)
           feedback.id = feedback.id.toLowerCase()
-          this.feedback[feedback.id] = {
+          this.#feedback[feedback.id] = {
             ...feedback,
             last_commented_at: isNaN(last_commented_at) ? `${feedback.last_commented_at.date}${feedback.last_commented_at.timezone || ''}` : (new Date(last_commented_at)).toLocaleString(),
             users: feedback.users.split(/\s*,\s*/).filter((u: string) => u),
             shown: {},
           }
-          for (const user of this.feedback[feedback.id].users) {
+          for (const user of this.#feedback[feedback.id].users) {
             this.users[user] = this.users[user] || 'neutral'
           }
         }
       }
       catch (err) {
-        log.debug(`PubPeer.get(${fetch}): ${err}`)
+        log.debug(`PubPeer.get(${refresh}): ${err}`)
       }
     }
 
-    return dois.map((doi: string) => this.feedback[doi]) as Feedback[]
+    return dois.map((doi: string) => this.#feedback[doi]) as Feedback[]
   }
 
   private async refresh() {
@@ -467,11 +481,7 @@ export class $PubPeer {
   protected async notify(action: string, type: string, ids: number[], _extraData: any) {
     if (type !== 'item' || (action !== 'modify' && action !== 'add')) return
 
-    const dois = []
-    for (const item of (await Zotero.Items.getAsync(ids))) {
-      const doi = getDOI(item)
-      if (doi && !dois.includes(doi)) dois.push(doi)
-    }
+    const dois = (await Zotero.Items.getAsync(ids)).map(item => getDOI(item)).filter(_ => _)
     if (dois.length) await this.get(dois)
   }
 }
