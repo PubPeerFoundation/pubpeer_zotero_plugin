@@ -127,7 +127,7 @@ $patch$.schedule(Zotero.Integration.Session.prototype, 'addCitation', original =
     }
   }
   catch (err) {
-    log.debug('Zotero.Integration.Session.prototype.addCitation:', err.message)
+    log.error('Zotero.Integration.Session.prototype.addCitation:', err.message)
   }
 })
 
@@ -152,7 +152,7 @@ function toggleUser() {
     Zotero.Notifier.trigger('modify', 'item', [Zotero.PubPeer.item.id])
   }
   else {
-    log.debug('toggleUser but no item set?')
+    log.info('toggleUser but no item set?')
   }
 }
 
@@ -168,7 +168,7 @@ export class $PubPeer {
   #feedback: Record<string, Feedback> = {}
   public feedback(item) {
     if (typeof item.id !== 'number') {
-      log.debug('item is not a Zotero item')
+      log.info('item is not a Zotero item')
       return empty
     }
 
@@ -238,6 +238,7 @@ export class $PubPeer {
         this.item = item
       },
       onRender: ({ body, setSectionSummary }) => {
+        log.debug('clearing section')
         while (body.firstChild) {
           body.removeChild(body.lastChild)
         }
@@ -246,6 +247,7 @@ export class $PubPeer {
       onAsyncRender: async ({ body, item, setSectionSummary }) => {
         this.item = item
         const feedback = this.feedback(item)
+        log.debug('rendering section for', item.id, 'feedback:', feedback)
 
         const doc = body.ownerDocument
 
