@@ -11,6 +11,7 @@
     "postbuild": "zotero-plugin-zipup build zotero-pubpeer",
     "postversion": "git push --follow-tags",
     "release": "zotero-plugin-release",
+    "fetch": "fetch-zotero-log",
     "start": "zotero-start"
   },
   "repository": {
