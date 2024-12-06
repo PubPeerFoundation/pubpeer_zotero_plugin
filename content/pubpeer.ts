@@ -411,7 +411,8 @@ export class $PubPeer {
 
   public async get(dois, options: { refresh?: boolean } = {}): Promise<Feedback[]> {
     dois = dois.map(doi => doi.toLowerCase())
-    const refresh = options.refresh ? dois : dois.filter(doi => !this.#feedback[doi.toLowerCase()])
+    const refresh = options.refresh ? dois : dois.filter(doi => !this.#feedback[doi.toLowerCase()]?.last_commented_at)
+    log.debug('refresh: retrieving', refresh)
 
     if (refresh.length) {
       try {
