@@ -178,7 +178,7 @@ export class $PubPeer {
 
     if (doi in this.#feedback) return this.#feedback[doi]
 
-    log.debug('no cached feedback for', item.id, doi)
+    log.debug('no cached feedback for', item.id, doi, 'among', Object.keys(this.#feedback))
     return empty
   }
 
@@ -447,6 +447,7 @@ export class $PubPeer {
       }
     }
 
+    log.debug('refresh: feedback cached for', Object.keys(this.#feedback))
     return dois.map((doi: string) => this.#feedback[doi]) as Feedback[]
   }
 
