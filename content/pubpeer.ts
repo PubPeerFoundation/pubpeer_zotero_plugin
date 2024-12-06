@@ -58,6 +58,7 @@ function plaintext(text) {
 function getDOI(item): string {
   let doi: string = item.getField('DOI')
   if (!doi) doi = (item.getField('extra') || '').match(/^DOI:\s*(.+)/im)?.[1]
+  log.debug('getDOI(', item.id, ') =', doi || '')
   return (doi || '').toLowerCase()
 }
 
@@ -168,21 +169,16 @@ export class $PubPeer {
   #feedback: Record<string, Feedback> = {}
   public feedback(item) {
     if (typeof item.id !== 'number') {
-      log.info('item is not a Zotero item')
+      log.error('item is not a Zotero item')
       return empty
     }
 
-    let doi: string = item.getField('DOI')
-    if (!doi) doi = (item.getField('extra') || '').match(/^DOI:\s*(.+)/im)?.[1]
-    doi = (doi || '').toLowerCase()
-    if (!doi) {
-      log.debug('item', item.id, 'does not have a DOI')
-      return empty
-    }
+    const doi = getDOI(item)
+    if (!doi) return empty
 
     if (doi in this.#feedback) return this.#feedback[doi]
 
-    log.debug('no feeback retrieved for', doi)
+    log.debug('no cached feedback for', item.id, doi)
     return empty
   }
 
