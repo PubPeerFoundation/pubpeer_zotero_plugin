@@ -422,6 +422,8 @@ export class $PubPeer {
           headers: { 'Content-Type': 'application/json;charset=UTF-8' },
         })).response
 
+        log.debug('refresh: received', pubpeer)
+
         for (const feedback of (pubpeer.feedbacks || [])) {
           if (!feedback.last_commented_at.timezone) {
             log.debug(`PubPeer.get: ${feedback.id} has no timezone`)
@@ -444,7 +446,7 @@ export class $PubPeer {
         }
       }
       catch (err) {
-        log.debug(`PubPeer.get(${refresh}): ${err}`)
+        log.error(`PubPeer.get(${refresh}): ${err}`)
       }
     }
 
