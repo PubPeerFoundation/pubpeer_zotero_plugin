@@ -411,47 +411,53 @@ export class $PubPeer {
 
   public async get(dois, options: { refresh?: boolean } = {}): Promise<Feedback[]> {
     dois = dois.map(doi => doi.toLowerCase())
-    const refresh = options.refresh ? dois : dois.filter(doi => !this.#feedback[doi.toLowerCase()]?.last_commented_at)
+    const refresh = [...(new Set(options.refresh ? dois : dois.filter(doi => !this.#feedback[doi.toLowerCase()]?.last_commented_at)))]
     log.debug('refresh: retrieving', refresh)
 
     if (refresh.length) {
-      try {
-        const pubpeer = (await Zotero.HTTP.request('POST', 'https://pubpeer.com/v3/publications?devkey=PubPeerZotero', {
-          body: JSON.stringify({ dois: refresh }),
-          responseType: 'json',
-          headers: { 'Content-Type': 'application/json;charset=UTF-8' },
-        })).response
-
-        log.debug('refresh: received', pubpeer)
-
-        for (const feedback of (pubpeer.feedbacks || [])) {
-          if (!feedback.last_commented_at.timezone) {
-            log.debug(`PubPeer.get: ${feedback.id} has no timezone`)
-          }
-          else if (feedback.last_commented_at.timezone !== 'UTC') {
-            log.debug(`PubPeer.get: ${feedback.id} has timezone ${feedback.last_commented_at.timezone}`)
-          }
-
-          const last_commented_at = Date.parse(`${feedback.last_commented_at.date}${(feedback.last_commented_at.timezone || 'UTC').replace(/^UTC$/, 'Z')}`)
-          feedback.id = feedback.id.toLowerCase()
-          this.#feedback[feedback.id] = {
-            ...feedback,
-            last_commented_at: isNaN(last_commented_at) ? `${feedback.last_commented_at.date}${feedback.last_commented_at.timezone || ''}` : (new Date(last_commented_at)).toLocaleString(),
-            users: feedback.users.split(/\s*,\s*/).filter((u: string) => u),
-            shown: {},
-          }
-          for (const user of this.#feedback[feedback.id].users) {
-            this.users[user] = this.users[user] || 'neutral'
-          }
-        }
-      }
-      catch (err) {
-        log.error(`PubPeer.get(${refresh}): ${err}`)
-      }
+      const chunkSize = 40
+      const chunks = Array.from({ length: Math.ceil(refresh.length / chunkSize) }, (v, i) => refresh.slice(i * chunkSize, i * chunkSize + chunkSize))
+      await Promise.allSettled(chunks.map(chunk => this.request(chunk)))
     }
 
     log.debug('refresh: feedback cached for', Object.keys(this.#feedback))
     return dois.map((doi: string) => this.#feedback[doi]) as Feedback[]
+  }
+
+  private async request(dois): Promise<void> {
+    try {
+      const pubpeer = (await Zotero.HTTP.request('POST', 'https://pubpeer.com/v3/publications?devkey=PubPeerZotero', {
+        body: JSON.stringify({ dois }),
+        responseType: 'json',
+        headers: { 'Content-Type': 'application/json;charset=UTF-8' },
+      })).response
+
+      log.debug('refresh: received', pubpeer)
+
+      for (const feedback of (pubpeer.feedbacks || [])) {
+        if (!feedback.last_commented_at.timezone) {
+          log.debug(`PubPeer.get: ${feedback.id} has no timezone`)
+        }
+        else if (feedback.last_commented_at.timezone !== 'UTC') {
+          log.debug(`PubPeer.get: ${feedback.id} has timezone ${feedback.last_commented_at.timezone}`)
+        }
+
+        const last_commented_at = Date.parse(`${feedback.last_commented_at.date}${(feedback.last_commented_at.timezone || 'UTC').replace(/^UTC$/, 'Z')}`)
+        feedback.id = feedback.id.toLowerCase()
+        this.#feedback[feedback.id] = {
+          ...feedback,
+          last_commented_at: isNaN(last_commented_at) ? `${feedback.last_commented_at.date}${feedback.last_commented_at.timezone || ''}` : (new Date(last_commented_at)).toLocaleString(),
+          users: feedback.users.split(/\s*,\s*/).filter((u: string) => u),
+          shown: {},
+        }
+        for (const user of this.#feedback[feedback.id].users) {
+          this.users[user] = this.users[user] || 'neutral'
+        }
+      }
+    }
+    catch (err) {
+      log.error(`PubPeer.get(${dois}): ${err}`)
+    }
   }
 
   private async refresh() {
