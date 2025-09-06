@@ -6,7 +6,6 @@ import { DebugLog as DebugLogSender } from 'zotero-plugin/debug-log'
 import { flash } from './flash'
 import { localize } from './l10n'
 
-
 /*
 function alert({ title, text }: { title?: string; text: string }): void {
   Services.prompt.alert(null, title || 'Alert', text)
