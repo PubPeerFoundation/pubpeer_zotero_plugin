@@ -28,7 +28,7 @@
   "homepage": "https://github.com/PubPeerFoundation/pubpeer_zotero_plugin",
   "dependencies": {
     "@xmldom/xmldom": "^0.9.6",
-    "zotero-plugin": "5.0.39"
+    "zotero-plugin": "6.1.0"
   },
   "xpi": {
     "name": "Pubpeer Plugin for Zotero",
@@ -42,10 +42,10 @@
     "bluebird": "^3.7.2",
     "esbuild": "^0.25.9",
     "eslint": "^9.35.0",
-    "globals": "^16.3.0",
+    "globals": "^16.4.0",
     "rimraf": "^6.0.1",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.2",
-    "typescript-eslint": "^8.42.0"
+    "typescript-eslint": "^8.43.0"
   }
 }
