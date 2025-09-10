@@ -8,10 +8,10 @@
     "lint": "eslint .",
     "prebuild": "npm run lint",
     "build": "node esbuild.js",
-    "postbuild": "zotero-plugin-zipup build zotero-pubpeer",
+    "postbuild": "zp-zipup build zotero-pubpeer",
     "postversion": "git push --follow-tags",
-    "release": "zotero-plugin-release",
-    "fetch": "fetch-zotero-log",
+    "release": "zp-release",
+    "fetch": "zp-fetch-log",
     "start": "zotero-start"
   },
   "repository": {
