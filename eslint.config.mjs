@@ -6,7 +6,7 @@ import tseslint from "typescript-eslint";
 export default [
   { files: ['bootstrap.ts', 'content/*.ts'],
   },
-  { ignores: ['gen/', 'esbuild.js', 'build/'],
+  { ignores: ['node_modules/', '*.d.ts', 'generator-temp/', 'gen/', 'esbuild.js', 'build/'],
   },
   { languageOptions: { globals: globals.browser }},
   pluginJs.configs.recommended,

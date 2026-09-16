@@ -11,6 +11,6 @@ export function flash(title: string, body?: string, timeout = 4): void {
     if (timeout) pw.startCloseTimer(timeout * 1000)
   }
   catch (err) {
-    log.debug('flash failed:', JSON.stringify({title, body}), err.message)
+    log.debug('flash failed:', JSON.stringify({title, body}), err instanceof Error ? err.message : String(err))
   }
 }

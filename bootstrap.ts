@@ -29,7 +29,7 @@ export async function shutdown() {
     chromeHandle.destruct()
     chromeHandle = undefined
   }
-  Zotero.PubPeer = null
+  Zotero.PubPeer = null as never
 }
 
 export function onMainWindowLoad({ window }) {

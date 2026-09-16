@@ -1,4 +1,4 @@
-import { DebugLog as DebugLogSender } from 'zotero-plugin/debug-log'
+import { DebugLogSender } from 'zotero-plugin/debug-log'
 import { log } from './debug'
 import { flash } from './flash'
 import { localize } from './l10n'
@@ -88,7 +88,7 @@ function copyTree(sourceNode, targetNode) {
 }
 */
 
-$patch$.schedule(Zotero.Item.prototype, 'getField', original => function Zotero_Item_prototype_getField(field, _unformatted, _includeBaseMapped): string {
+$patch$.schedule(Zotero.Item.prototype, 'getField', original => function Zotero_Item_prototype_getField(this: any, field, _unformatted, _includeBaseMapped): string {
   try {
     if (field === 'pubpeer') {
       return `${Zotero.PubPeer.feedback(this).total_comments || ''}`
@@ -102,7 +102,7 @@ $patch$.schedule(Zotero.Item.prototype, 'getField', original => function Zotero_
   return original.apply(this, arguments) as string
 })
 
-$patch$.schedule(Zotero.Integration.Session.prototype, 'addCitation', original => async function(index, noteIndex, citation) {
+$patch$.schedule(Zotero.Integration.Session.prototype, 'addCitation', original => async function(this: any, index, noteIndex, citation) {
   await original.apply(this, arguments)
   try {
     const ids = citation.citationItems.map((item: { id: number }) => item.id)
@@ -124,7 +124,7 @@ $patch$.schedule(Zotero.Integration.Session.prototype, 'addCitation', original =
     }
   }
   catch (err) {
-    log.error('Zotero.Integration.Session.prototype.addCitation:', err.message)
+    log.error('Zotero.Integration.Session.prototype.addCitation:', err instanceof Error ? err.message : String(err))
   }
 })
 
@@ -134,12 +134,15 @@ const states = {
   icon: { neutral: 'pubpeer.png', muted: 'pubpeer-muted.png', loading: 'loading.png', highlighted: 'pubpeer-highlighted.png' },
 }
 
-function toggleUser() {
+function toggleUser(this: HTMLElement & { value: string }) {
   const user = this.getAttribute('data-user')
-  const state = states.name[(states.name.indexOf(this.getAttribute('data-state')) + 1) % states.name.length]
+  const parent = this.parentElement
+  if (!user || !parent) return
+  const currentState = this.getAttribute('data-state') || 'neutral'
+  const state = states.name[(states.name.indexOf(currentState) + 1) % states.name.length]
 
   Zotero.PubPeer.users[user] = state as 'neutral' // bypass TS2322
-  this.parentElement.setAttribute('class', `pupbeer pubpeer-user pubpeer-user-${state}`)
+  parent.setAttribute('class', `pupbeer pubpeer-user pubpeer-user-${state}`)
   this.value = states.label[state]
   this.setAttribute('data-state', state)
   Zotero.PubPeer.save()
@@ -155,6 +158,7 @@ function toggleUser() {
 
 type XULWindow = Window & { MozXULElement: any; ZoteroPane: any }
 const ready = Zotero.Promise.defer()
+let sender: DebugLogSender | undefined
 export class $PubPeer {
   public item: any
 
@@ -179,7 +183,7 @@ export class $PubPeer {
     return empty
   }
 
-  private itemObserver: number
+  private itemObserver!: number
 
   public load(): Record<string, 'neutral' | 'priority' | 'muted'> {
     try {
@@ -214,7 +218,8 @@ export class $PubPeer {
 
     this.itemObserver = Zotero.Notifier.registerObserver(this, ['item'], 'PubPeer', 1)
 
-    DebugLogSender.register('PubPeer', [])
+    sender = new DebugLogSender('zotero-pubpeer@pubpeer.com', 'Send PubPeer debug log', [])
+    sender.enabled = true
 
     Zotero.ItemPaneManager.registerSection({
       paneID: 'pubpeer-section-peer-comments',
@@ -341,6 +346,7 @@ export class $PubPeer {
     }
   }
   public async shutdown() {
+    if (sender) sender.enabled = false
     for (const win of Zotero.getMainWindows()) {
       if (win.ZoteroPane) this.onMainWindowUnload({ window: win })
     }
@@ -353,7 +359,9 @@ export class $PubPeer {
 
     if (doc.querySelector('menuitem.pubpeer')) return
 
-    doc.getElementById('zotero-itemmenu').addEventListener('popupshowing', this, false)
+    const itemMenu = doc.getElementById('zotero-itemmenu')
+    if (!itemMenu) return
+    itemMenu.addEventListener('popupshowing', this, false)
     window.MozXULElement.insertFTLIfNeeded('zotero-pubpeer.ftl')
 
     const menuitem = doc.createXULElement('menuitem')
@@ -368,7 +376,7 @@ export class $PubPeer {
         log.error('fetch failed:', err)
       }
     })
-    doc.getElementById('zotero-itemmenu').appendChild(menuitem)
+    itemMenu.appendChild(menuitem)
   }
 
   public async fetch(): Promise<void> {
@@ -389,12 +397,12 @@ export class $PubPeer {
 
   public onMainWindowUnload({ window }: { window: XULWindow }) {
     const doc = window.document
-    doc.getElementById('zotero-itemmenu').removeEventListener('popupshowing', this, false)
+    doc.getElementById('zotero-itemmenu')?.removeEventListener('popupshowing', this, false)
 
     for (const elt of Array.from(doc.getElementsByClassName('pubpeer'))) {
       elt.remove()
     }
-    doc.querySelector('[href="pubpeer.ftl"]').remove()
+    doc.querySelector('[href="pubpeer.ftl"]')?.remove()
   }
 
   public handleEvent(_event: any) {
@@ -465,9 +473,11 @@ export class $PubPeer {
     const dois: string[] = []
     for (const doi of (await Zotero.DB.queryAsync(query) as { fieldName: string; value: string }[])) {
       switch (doi.fieldName) {
-        case 'extra':
-          dois.push(doi.value.match(/^DOI:\s*(.+)/im)?.[1])
+        case 'extra': {
+          const match = doi.value.match(/^DOI:\s*(.+)/im)?.[1]
+          if (match) dois.push(match)
           break
+        }
         case 'DOI':
           dois.push(doi.value)
           break
