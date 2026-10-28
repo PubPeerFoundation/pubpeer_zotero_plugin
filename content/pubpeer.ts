@@ -38,6 +38,36 @@ const empty: Feedback = {
   shown: {},
 }
 
+// A lookup result, kept on disk so a restart does not ask PubPeer about the whole library again.
+// `feedback` is absent when PubPeer has no comments on the DOI.
+interface CacheEntry {
+  expires: number
+  feedback?: Feedback
+}
+
+const DAY = 24 * 60 * 60 * 1000
+// Papers with comments are re-checked daily, papers without weekly. Each expiry is jittered so a
+// library fetched in one go is re-checked a slice at a time rather than all on the same day.
+const TTL = { commented: DAY, uncommented: 7 * DAY }
+// PubPeer answers 20 requests a minute per IP, and 200 DOIs a minute. Ten DOIs a request, about
+// 17 requests a minute, stays under both with a margin, so a lone Zotero install is not throttled.
+const CHUNK_SIZE = 10
+const REQUEST_INTERVAL = 3500
+const REFRESH_INTERVAL = 6 * 60 * 60 * 1000
+const MAX_ATTEMPTS = 3
+
+function expiry(ttl: number): number {
+  return Date.now() + Math.round(ttl * (0.5 + Math.random()))
+}
+
+// PubPeer sends `Y-m-d H:i:s` in UTC. Comment times are public at day precision, so show the date.
+function commentedAt(value: string | { date?: string } | undefined): string {
+  const raw = typeof value === 'string' ? value : value?.date
+  if (!raw) return '?'
+  const parsed = Date.parse(`${raw.trim().replace(' ', 'T').replace(/[.]\d+$/, '')}Z`)
+  return isNaN(parsed) ? raw : new Date(parsed).toLocaleDateString()
+}
+
 const NS = {
   XUL: 'http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul',
   XHTML: 'http://www.w3.org/1999/xhtml',
@@ -56,7 +86,7 @@ function getDOI(item): string {
   let doi: string = item.getField('DOI')
   if (!doi) doi = (item.getField('extra') || '').match(/^DOI:\s*(.+)/im)?.[1]
   log.debug('getDOI(', item.id, ') =', doi || '')
-  return (doi || '').toLowerCase()
+  return (doi || '').trim().toLowerCase()
 }
 
 function copyNode(sourceNode: Node, targetDocument) {
@@ -167,7 +197,13 @@ export class $PubPeer {
   private dom = new DOMParser()
   private serializer = new XMLSerializer()
 
-  #feedback: Record<string, Feedback> = {}
+  #cache: Record<string, CacheEntry> = {}
+  #nextSlot = 0
+  #stopped = false
+  #refreshTimer: ReturnType<typeof setTimeout> | undefined
+  #columnsRefreshedAt = 0
+  #saving: Promise<void> = Promise.resolve()
+
   public feedback(item) {
     if (typeof item.id !== 'number') {
       log.error('item is not a Zotero item')
@@ -177,10 +213,7 @@ export class $PubPeer {
     const doi = getDOI(item)
     if (!doi) return empty
 
-    if (doi in this.#feedback) return this.#feedback[doi]
-
-    log.debug('no cached feedback for', item.id, doi, 'among', Object.keys(this.#feedback))
-    return empty
+    return this.#cache[doi]?.feedback || empty
   }
 
   private itemObserver!: number
@@ -212,7 +245,7 @@ export class $PubPeer {
   public async startup() {
     await Zotero.initializationPromise
     ready.resolve(true)
-    await this.refresh()
+    await this.loadCache()
 
     $patch$.execute()
 
@@ -344,8 +377,14 @@ export class $PubPeer {
     for (const win of Zotero.getMainWindows()) {
       if (win.ZoteroPane) this.onMainWindowLoad({ window: win })
     }
+
+    // In the background: with the requests paced, a large library takes a while on the first run
+    this.#refreshTimer = setTimeout(() => this.refresh(), 0)
   }
   public async shutdown() {
+    this.#stopped = true
+    if (this.#refreshTimer) clearTimeout(this.#refreshTimer)
+    await this.saveCache()
     if (sender) sender.enabled = false
     for (const win of Zotero.getMainWindows()) {
       if (win.ZoteroPane) this.onMainWindowUnload({ window: win })
@@ -384,15 +423,13 @@ export class $PubPeer {
     const dois = selectedItems.map(item => getDOI(item)).filter(_ => _)
     if (!dois.length) return
 
-    for (const feedback of await this.get(dois)) {
+    for (const feedback of await this.get(dois, { force: true })) {
       if (feedback) {
         let output = `The selected item has ${feedback.total_comments} ${feedback.total_comments === 1 ? 'comment' : 'comments'} on PubPeer`
         if (feedback.total_comments) output += ` ${feedback.url}`
         flash('PubPeer', output)
       }
     }
-
-    Zotero.ItemTreeManager.refreshColumns()
   }
 
   public onMainWindowUnload({ window }: { window: XULWindow }) {
@@ -410,58 +447,158 @@ export class $PubPeer {
     // TODO: hide menu element when appropriate
   }
 
-  public async get(dois, options: { refresh?: boolean } = {}): Promise<Feedback[]> {
-    dois = dois.map(doi => doi.toLowerCase())
-    const refresh = [...(new Set(options.refresh ? dois : dois.filter(doi => !this.#feedback[doi.toLowerCase()]?.last_commented_at)))]
-    log.debug('refresh: retrieving', refresh)
+  // Looks up the DOIs that are not cached or have expired, or all of them with `force`
+  public async get(dois: string[], options: { force?: boolean } = {}): Promise<(Feedback | undefined)[]> {
+    dois = [...new Set(dois.map(doi => doi.trim().toLowerCase()))]
+    const now = Date.now()
+    const lookup = options.force ? dois : dois.filter(doi => !(this.#cache[doi]?.expires > now))
+    log.debug('get: looking up', lookup)
 
-    if (refresh.length) {
-      const chunkSize = 40
-      const chunks = Array.from({ length: Math.ceil(refresh.length / chunkSize) }, (v, i) => refresh.slice(i * chunkSize, i * chunkSize + chunkSize))
-      await Promise.allSettled(chunks.map(chunk => this.request(chunk)))
+    for (let i = 0; i < lookup.length; i += CHUNK_SIZE) {
+      if (!await this.request(lookup.slice(i, i + CHUNK_SIZE))) break
+    }
+    if (lookup.length) {
+      this.refreshColumns(true)
+      await this.saveCache()
     }
 
-    log.debug('refresh: feedback cached for', Object.keys(this.#feedback))
-    return dois.map((doi: string) => this.#feedback[doi]) as Feedback[]
+    return dois.map(doi => this.#cache[doi]?.feedback)
   }
 
-  private async request(dois): Promise<void> {
+  // Waits for this request's turn: one every REQUEST_INTERVAL, later if PubPeer asked us to back off
+  private async slot(): Promise<void> {
+    const now = Date.now()
+    const at = Math.max(now, this.#nextSlot)
+    this.#nextSlot = at + REQUEST_INTERVAL
+    if (at > now) await Zotero.Promise.delay(at - now)
+  }
+
+  private api(): { url: string; headers: Record<string, string> } {
+    // `pubpeer.api` and `pubpeer.headers` (JSON) let a tester point the plugin at a staging server
+    let headers: Record<string, string> = {}
     try {
-      const pubpeer = (await Zotero.HTTP.request('POST', 'https://pubpeer.com/v3/publications?devkey=PubPeerZotero', {
-        body: JSON.stringify({ dois }),
-        responseType: 'json',
-        headers: { 'Content-Type': 'application/json;charset=UTF-8' },
-      })).response
-
-      log.debug('refresh: received', pubpeer)
-
-      for (const feedback of (pubpeer.feedbacks || [])) {
-        if (!feedback.last_commented_at.timezone) {
-          log.debug(`PubPeer.get: ${feedback.id} has no timezone`)
-        }
-        else if (feedback.last_commented_at.timezone !== 'UTC') {
-          log.debug(`PubPeer.get: ${feedback.id} has timezone ${feedback.last_commented_at.timezone}`)
-        }
-
-        const last_commented_at = Date.parse(`${feedback.last_commented_at.date}${(feedback.last_commented_at.timezone || 'UTC').replace(/^UTC$/, 'Z')}`)
-        feedback.id = feedback.id.toLowerCase()
-        this.#feedback[feedback.id] = {
-          ...feedback,
-          last_commented_at: isNaN(last_commented_at) ? `${feedback.last_commented_at.date}${feedback.last_commented_at.timezone || ''}` : (new Date(last_commented_at)).toLocaleString(),
-          users: feedback.users.split(/\s*,\s*/).filter((u: string) => u),
-          shown: {},
-        }
-        for (const user of this.#feedback[feedback.id].users) {
-          this.users[user] = this.users[user] || 'neutral'
-        }
-      }
+      headers = JSON.parse(Zotero.Prefs.get('pubpeer.headers') || '{}')
     }
     catch (err) {
-      log.error(`PubPeer.get(${dois}): ${err}`)
+      log.error('pubpeer.headers is not valid JSON:', err)
+    }
+    const base = (Zotero.Prefs.get('pubpeer.api') || 'https://pubpeer.com').replace(/\/+$/, '')
+    return { url: `${base}/v3/publications?devkey=PubPeerZotero`, headers }
+  }
+
+  // Returns false when the chunk could not be looked up, so a caller can stop for now
+  private async request(dois: string[]): Promise<boolean> {
+    const api = this.api()
+
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+      await this.slot()
+      if (this.#stopped) return false
+
+      let xhr
+      try {
+        xhr = await Zotero.HTTP.request('POST', api.url, {
+          body: JSON.stringify({ dois }),
+          responseType: 'json',
+          headers: { ...api.headers, 'Content-Type': 'application/json;charset=UTF-8' },
+          successCodes: [200, 429],
+        })
+      }
+      catch (err) {
+        log.error(`PubPeer.request(${dois}): ${err}`)
+        return false
+      }
+
+      if (xhr.status === 429) {
+        const retryAfter = parseInt(xhr.getResponseHeader('Retry-After'))
+        log.debug(`PubPeer.request: throttled, retry after ${retryAfter}s`)
+        this.#nextSlot = Math.max(this.#nextSlot, Date.now() + (isNaN(retryAfter) ? 60 : Math.max(retryAfter, 1)) * 1000)
+        continue
+      }
+
+      this.store(dois, xhr.response?.feedbacks || [])
+      return true
+    }
+
+    return false
+  }
+
+  private store(dois: string[], feedbacks: any[]) {
+    log.debug('store: received', feedbacks)
+
+    const found: Record<string, Feedback> = {}
+    for (const feedback of feedbacks) {
+      const id = `${feedback.id || ''}`.toLowerCase()
+      if (!id) continue
+
+      found[id] = {
+        id,
+        title: feedback.title || '',
+        url: feedback.url || '',
+        total_comments: feedback.total_comments || 0,
+        users: `${feedback.users || ''}`.split(/\s*,\s*/).filter((u: string) => u),
+        last_commented_at: commentedAt(feedback.last_commented_at),
+        shown: this.#cache[id]?.feedback?.shown || {},
+      }
+      for (const user of found[id].users) {
+        this.users[user] = this.users[user] || 'neutral'
+      }
+    }
+
+    for (const doi of new Set([...dois, ...Object.keys(found)])) {
+      const feedback = found[doi]
+      this.#cache[doi] = { expires: expiry(feedback ? TTL.commented : TTL.uncommented), feedback }
+    }
+
+    if (Object.keys(found).length) this.refreshColumns()
+  }
+
+  private refreshColumns(force = false) {
+    if (!force && Date.now() - this.#columnsRefreshedAt < 15000) return
+    this.#columnsRefreshedAt = Date.now()
+    Zotero.ItemTreeManager.refreshColumns()
+  }
+
+  private cachePath(): string {
+    return PathUtils.join(Zotero.DataDirectory.dir, 'pubpeer-cache.json')
+  }
+
+  private async loadCache() {
+    try {
+      const path = this.cachePath()
+      if (!await IOUtils.exists(path)) return
+      const cache = await IOUtils.readJSON(path)
+      if (cache?.version !== 1) return
+      for (const [doi, entry] of Object.entries(cache.entries as Record<string, CacheEntry>)) {
+        this.#cache[doi] = entry.feedback ? { ...entry, feedback: { ...entry.feedback, shown: {} } } : entry
+      }
+      log.debug('loadCache:', Object.keys(this.#cache).length, 'DOIs')
+    }
+    catch (err) {
+      log.error('loadCache failed:', err)
     }
   }
 
-  private async refresh() {
+  // Writes are chained so a refresh and a lookup finishing together do not write the file at once
+  private saveCache(): Promise<void> {
+    this.#saving = this.#saving.then(() => this.writeCache())
+    return this.#saving
+  }
+
+  private async writeCache() {
+    try {
+      const entries: Record<string, CacheEntry> = {}
+      for (const [doi, entry] of Object.entries(this.#cache)) {
+        entries[doi] = entry.feedback ? { ...entry, feedback: { ...entry.feedback, shown: {} } } : entry
+      }
+      const path = this.cachePath()
+      await IOUtils.writeJSON(path, { version: 1, entries }, { tmpPath: `${path}.tmp` })
+    }
+    catch (err) {
+      log.error('saveCache failed:', err)
+    }
+  }
+
+  private async libraryDOIs(): Promise<string[]> {
     const query = `
       SELECT DISTINCT fields.fieldName, itemDataValues.value
       FROM fields
@@ -470,23 +607,44 @@ export class $PubPeer {
       WHERE fieldname IN ('extra', 'DOI')
     `.replace(/[\s\n]+/g, ' ').trim()
 
-    const dois: string[] = []
+    const dois = new Set<string>()
     for (const doi of (await Zotero.DB.queryAsync(query) as { fieldName: string; value: string }[])) {
-      switch (doi.fieldName) {
-        case 'extra': {
-          const match = doi.value.match(/^DOI:\s*(.+)/im)?.[1]
-          if (match) dois.push(match)
-          break
-        }
-        case 'DOI':
-          dois.push(doi.value)
-          break
-      }
+      const value = doi.fieldName === 'extra' ? doi.value.match(/^DOI:\s*(.+)/im)?.[1] : doi.value
+      if (value?.trim()) dois.add(value.trim().toLowerCase())
     }
+    return [...dois]
+  }
 
-    await this.get(dois.filter(_ => _), { refresh: true })
+  // Looks up the expired part of the library, then schedules the next run
+  private async refresh() {
+    try {
+      const dois = await this.libraryDOIs()
 
-    setTimeout(this.refresh.bind(this), 24 * 60 * 60 * 1000)
+      // forget DOIs that left the library, so the cache does not grow forever
+      const inLibrary = new Set(dois)
+      for (const doi of Object.keys(this.#cache)) {
+        if (!inLibrary.has(doi)) delete this.#cache[doi]
+      }
+
+      const now = Date.now()
+      const expired = dois.filter(doi => !(this.#cache[doi]?.expires > now))
+      log.debug('refresh:', expired.length, 'of', dois.length, 'DOIs expired')
+
+      for (let i = 0; i < expired.length && !this.#stopped; i += CHUNK_SIZE) {
+        if (!await this.request(expired.slice(i, i + CHUNK_SIZE))) break
+        // save now and then, so a long first run is not lost if Zotero closes
+        if ((i / CHUNK_SIZE) % 50 === 49) await this.saveCache()
+      }
+
+      this.refreshColumns(true)
+      await this.saveCache()
+    }
+    catch (err) {
+      log.error('refresh failed:', err)
+    }
+    finally {
+      if (!this.#stopped) this.#refreshTimer = setTimeout(() => this.refresh(), REFRESH_INTERVAL)
+    }
   }
 
   protected async notify(action: string, type: string, ids: number[], _extraData: any) {
